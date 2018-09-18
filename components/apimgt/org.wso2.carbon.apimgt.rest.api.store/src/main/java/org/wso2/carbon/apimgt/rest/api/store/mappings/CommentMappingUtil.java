@@ -51,6 +51,8 @@ public class CommentMappingUtil {
                 .getCommentedUser());
         commentDTO.setUsername(realName);
         commentDTO.setCommentText(comment.getCommentText());
+        commentDTO.setCategory(comment.getCategory());
+        commentDTO.setParentCommentId(comment.getParentCommentId());
         commentDTO.setCreatedBy(comment.getCreatedUser());
         commentDTO.setLastUpdatedBy(comment.getUpdatedUser());
         commentDTO.setCreatedTime(comment.getCreatedTime().toString());
@@ -70,6 +72,8 @@ public class CommentMappingUtil {
 
         Comment comment = new Comment();
         comment.setCommentText(body.getCommentText());
+        comment.setCategory(body.getCategory());
+        comment.setParentCommentId(body.getParentCommentId());
         comment.setCommentedUser(username);
         comment.setApiId(body.getApiId());
         comment.setCreatedUser(username);

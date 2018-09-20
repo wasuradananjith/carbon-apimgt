@@ -121,6 +121,54 @@ public class ApisApiServiceImplTestCase {
         Assert.assertEquals(200, response.getStatus());
     }
 
+  /*  @Test
+    public void apisApiIdCommentsPost() throws Exception {
+        printTestMethodName();
+        String apiId = UUID.randomUUID().toString();
+        String commentId = UUID.randomUUID().toString();
+
+        ApisApiServiceImpl apisApiService = new ApisApiServiceImpl();
+        APIStore apiStore = Mockito.mock(APIStoreImpl.class);
+
+        PowerMockito.mockStatic(RestApiUtil.class);
+        PowerMockito.when(RestApiUtil.getConsumer(USER)).thenReturn(apiStore);
+        Request request = getRequest();
+        PowerMockito.when(RestApiUtil.getLoggedInUsername(request)).thenReturn(USER);
+
+        CommentDTO commentDTO = new CommentDTO();
+        commentDTO.setApiId(apiId);
+        commentDTO.setCommentId(commentId);
+        commentDTO.setCommentText("comment text");
+        commentDTO.setCategory("testCategory");
+        commentDTO.setParentCommentId("");
+        commentDTO.setCreatedBy("creater");
+        commentDTO.setLastUpdatedBy("updater");
+
+        Instant time = APIUtils.getCurrentUTCTime();
+        Comment comment = new Comment();
+        comment.setCommentedUser("commentedUser");
+        comment.setCommentText("this is a comment");
+        comment.setCategory("testCategory");
+        comment.setParentCommentId("");
+        comment.setCreatedUser("createdUser");
+        comment.setUpdatedUser("updatedUser");
+        comment.setCreatedTime(time);
+        comment.setUpdatedTime(time);
+
+        Mockito.doReturn(commentId).doThrow(new IllegalArgumentException()).when(apiStore)
+                .addComment(comment, apiId);
+        //Mockito.when(apiStore.getCommentByUUID(commentId, apiId)).thenReturn(comment);
+
+
+        Mockito.doReturn(comment).doThrow(new IllegalArgumentException())
+                .when(apiStore).getCommentByUUID(commentId,apiId);
+
+        Response response = apisApiService.apisApiIdCommentsPost
+                (apiId, commentDTO, getRequest());
+
+        Assert.assertEquals(200, response.getStatus());
+    }
+*/
     @Test
     public void testApisApiIdCommentsCommentIdDeleteNotFound() throws APIManagementException, NotFoundException {
         printTestMethodName();
@@ -193,6 +241,8 @@ public class ApisApiServiceImplTestCase {
         comment.setApiId(apiId);
         comment.setCommentedUser("commentedUser");
         comment.setCommentText("this is a comment");
+        comment.setCategory("testCategory");
+        comment.setParentCommentId("");
         comment.setCreatedUser("createdUser");
         comment.setUpdatedUser("updatedUser");
         comment.setCreatedTime(time);
@@ -247,6 +297,8 @@ public class ApisApiServiceImplTestCase {
         comment1.setUuid(UUID.randomUUID().toString());
         comment1.setCommentedUser("commentedUser1");
         comment1.setCommentText("this is a comment 1");
+        comment1.setCategory("testCategory1");
+        comment1.setParentCommentId("");
         comment1.setCreatedUser("createdUser1");
         comment1.setUpdatedUser("updatedUser1");
         comment1.setCreatedTime(time);
@@ -257,6 +309,8 @@ public class ApisApiServiceImplTestCase {
         comment2.setUuid(UUID.randomUUID().toString());
         comment2.setCommentedUser("commentedUser2");
         comment2.setCommentText("this is a comment 2");
+        comment2.setCategory("testCategory2");
+        comment2.setParentCommentId("");
         comment2.setCreatedUser("createdUser2");
         comment2.setUpdatedUser("updatedUser2");
         comment2.setCreatedTime(time);
@@ -310,6 +364,8 @@ public class ApisApiServiceImplTestCase {
         CommentDTO commentDTO = new CommentDTO();
         commentDTO.setApiId(apiId);
         commentDTO.setCommentText("comment text");
+        commentDTO.setCategory("testCategory");
+        commentDTO.setParentCommentId("");
         commentDTO.setCreatedBy("creater");
         commentDTO.setLastUpdatedBy("updater");
 
@@ -317,6 +373,8 @@ public class ApisApiServiceImplTestCase {
         Comment comment = new Comment();
         comment.setCommentedUser("commentedUser");
         comment.setCommentText("this is a comment");
+        comment.setCategory("testCategory");
+        comment.setParentCommentId("");
         comment.setCreatedUser("createdUser");
         comment.setUpdatedUser("updatedUser");
         comment.setCreatedTime(time);
@@ -349,6 +407,8 @@ public class ApisApiServiceImplTestCase {
         CommentDTO commentDTO = new CommentDTO();
         commentDTO.setApiId(apiId);
         commentDTO.setCommentText("comment text");
+        commentDTO.setCategory("testCategory");
+        commentDTO.setParentCommentId("");
         commentDTO.setCreatedBy("creater");
         commentDTO.setLastUpdatedBy("updater");
 
@@ -356,6 +416,8 @@ public class ApisApiServiceImplTestCase {
         Comment comment = new Comment();
         comment.setCommentedUser("commentedUser");
         comment.setCommentText("this is a comment");
+        comment.setCategory("testCategory");
+        comment.setParentCommentId("");
         comment.setCreatedUser("createdUser");
         comment.setUpdatedUser("updatedUser");
         comment.setCreatedTime(time);

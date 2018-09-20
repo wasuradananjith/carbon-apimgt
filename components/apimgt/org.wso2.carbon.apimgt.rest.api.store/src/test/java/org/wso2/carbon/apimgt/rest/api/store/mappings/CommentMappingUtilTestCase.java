@@ -44,6 +44,8 @@ public class CommentMappingUtilTestCase {
         comment.setUuid(commentUUID);
         comment.setCommentedUser("commentedUser");
         comment.setCommentText("this is a comment");
+        comment.setCategory("testingCategory");
+        comment.setParentCommentId("");
         comment.setCreatedUser("createdUser");
         comment.setUpdatedUser("updatedUser");
         comment.setCreatedTime(time);
@@ -63,6 +65,8 @@ public class CommentMappingUtilTestCase {
         CommentDTO commentDTO = new CommentDTO();
         commentDTO.setApiId(apiID);
         commentDTO.setCommentText("comment text");
+        commentDTO.setCategory("testingCategory");
+        commentDTO.setParentCommentId("");
         commentDTO.setCreatedBy("creater");
         commentDTO.setLastUpdatedBy("updater");
 
@@ -80,6 +84,8 @@ public class CommentMappingUtilTestCase {
         comment1.setUuid(UUID.randomUUID().toString());
         comment1.setCommentedUser("commentedUser1");
         comment1.setCommentText("this is a comment 1");
+        comment1.setCategory("testingCategory1");
+        comment1.setParentCommentId("");
         comment1.setCreatedUser("createdUser1");
         comment1.setUpdatedUser("updatedUser1");
         comment1.setCreatedTime(time);
@@ -90,6 +96,8 @@ public class CommentMappingUtilTestCase {
         comment2.setUuid(UUID.randomUUID().toString());
         comment2.setCommentedUser("commentedUser2");
         comment2.setCommentText("this is a comment 2");
+        comment2.setCategory("testingCategory1");
+        comment2.setParentCommentId("");
         comment2.setCreatedUser("createdUser2");
         comment2.setUpdatedUser("updatedUser2");
         comment2.setCreatedTime(time);

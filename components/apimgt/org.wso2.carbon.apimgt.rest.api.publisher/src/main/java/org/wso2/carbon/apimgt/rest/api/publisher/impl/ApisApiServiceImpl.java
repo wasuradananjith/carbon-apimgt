@@ -34,17 +34,7 @@ import org.wso2.carbon.apimgt.rest.api.common.dto.ErrorDTO;
 import org.wso2.carbon.apimgt.rest.api.common.util.RestApiUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.ApisApiService;
 import org.wso2.carbon.apimgt.rest.api.publisher.NotFoundException;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.APIDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.APIDefinitionValidationResponseDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.APIListDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.DedicatedGatewayDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.DocumentDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.DocumentListDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.FileInfoDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.ScopeDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.ScopeListDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.ThreatProtectionPolicyDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.dto.WorkflowResponseDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.dto.*;
 import org.wso2.carbon.apimgt.rest.api.publisher.utils.MappingUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.utils.RestAPIPublisherUtil;
 import org.wso2.carbon.lcm.core.impl.LifecycleState;
@@ -70,6 +60,39 @@ import javax.ws.rs.core.Response;
         "2016-11-01T13:47:43.416+05:30")
 public class ApisApiServiceImpl extends ApisApiService {
     private static final Logger log = LoggerFactory.getLogger(ApisApiServiceImpl.class);
+
+    @Override
+    public Response apisApiIdCommentsCommentIdDelete(String commentId, String apiId, String ifMatch,
+                                                     String ifUnmodifiedSince, Request request)
+            throws NotFoundException {
+        return null;
+    }
+
+    @Override
+    public Response apisApiIdCommentsCommentIdGet(String commentId, String apiId, String ifNoneMatch,
+                                                  String ifModifiedSince, Request request)
+            throws NotFoundException {
+        return null;
+    }
+
+    @Override
+    public Response apisApiIdCommentsCommentIdPut(String commentId, String apiId, CommentDTO body, String ifMatch,
+                                                  String ifUnmodifiedSince, Request request)
+            throws NotFoundException {
+        return null;
+    }
+
+    @Override
+    public Response apisApiIdCommentsGet(String apiId, Integer limit, Integer offset, Request request)
+            throws NotFoundException {
+        return null;
+    }
+
+    @Override
+    public Response apisApiIdCommentsPost(String apiId, CommentDTO body, Request request) throws NotFoundException {
+
+        return null;
+    }
 
     /**
      * Retrive Dedicated Gateway of an API

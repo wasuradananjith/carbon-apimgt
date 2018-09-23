@@ -44,9 +44,11 @@ import org.wso2.carbon.apimgt.core.configuration.models.KeyMgtConfigurations;
 import org.wso2.carbon.apimgt.core.configuration.models.NotificationConfigurations;
 import org.wso2.carbon.apimgt.core.configuration.models.ServiceDiscoveryConfigurations;
 import org.wso2.carbon.apimgt.core.configuration.models.ServiceDiscoveryImplConfig;
+import org.wso2.carbon.apimgt.core.dao.ApiDAO;
 import org.wso2.carbon.apimgt.core.dao.SearchType;
 import org.wso2.carbon.apimgt.core.dao.ThreatProtectionDAO;
 import org.wso2.carbon.apimgt.core.dao.impl.DAOFactory;
+import org.wso2.carbon.apimgt.core.exception.APICommentException;
 import org.wso2.carbon.apimgt.core.exception.APIManagementException;
 import org.wso2.carbon.apimgt.core.exception.APIMgtDAOException;
 import org.wso2.carbon.apimgt.core.exception.APIMgtResourceNotFoundException;
@@ -65,6 +67,7 @@ import org.wso2.carbon.apimgt.core.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.core.models.API;
 import org.wso2.carbon.apimgt.core.models.APIResource;
 import org.wso2.carbon.apimgt.core.models.APIStatus;
+import org.wso2.carbon.apimgt.core.models.Comment;
 import org.wso2.carbon.apimgt.core.models.CorsConfiguration;
 import org.wso2.carbon.apimgt.core.models.DedicatedGateway;
 import org.wso2.carbon.apimgt.core.models.DocumentInfo;
@@ -2531,6 +2534,154 @@ public class APIPublisherImpl extends AbstractAPIManager implements APIPublisher
             throw new APIManagementException("Scope couldn't found by name: " + scopeName, ExceptionCodes
                     .SCOPE_NOT_FOUND);
         }
+    }
+
+    /**
+     * Fail if api not exists
+     *
+     * @param apiId UUID of the api
+     * @throws APIMgtResourceNotFoundException if API does not exist
+     * @throws APIMgtDAOException              if error occurred while accessing data layer
+     */
+    private void failIfApiNotExists(String apiId) throws APIMgtResourceNotFoundException, APIMgtDAOException {
+        if (!getApiDAO().isAPIExists(apiId)) {
+            String errorMsg = "api not found for the id : " + apiId;
+            log.error(errorMsg);
+            throw new APIMgtResourceNotFoundException(errorMsg, ExceptionCodes.API_NOT_FOUND);
+        }
+    }
+
+    @Override
+    public String addComment(Comment comment, String apiId) throws APICommentException,
+            APIMgtResourceNotFoundException {
+        validateCommentMaxCharacterLength(comment.getCommentText());
+        String generatedUuid = UUID.randomUUID().toString();
+        comment.setUuid(generatedUuid);
+        try {
+            failIfApiNotExists(apiId);
+            getApiDAO().addComment(comment, apiId);
+        } catch (APIMgtDAOException e) {
+            String errorMsg = "Error occurred while adding comment for api - " + apiId;
+            log.error(errorMsg, e);
+            throw new APICommentException(errorMsg, e, e.getErrorHandler());
+        }
+        return comment.getUuid();
+    }
+
+    @Override
+    public void deleteComment(String commentId, String apiId, String username) throws APICommentException,
+            APIMgtResourceNotFoundException {
+        try {
+            ApiDAO apiDAO = getApiDAO();
+            failIfApiNotExists(apiId);
+            Comment comment = apiDAO.getCommentByUUID(commentId, apiId);
+            if (comment != null) {
+                // if the delete operation is done by a user who isn't the owner of the comment
+                if (!comment.getCommentedUser().equals(username)) {
+                    checkIfUserIsCommentModerator(username);
+                }
+                apiDAO.deleteComment(commentId, apiId);
+            } else {
+                String errorMsg = "Couldn't find comment with comment_id : " + commentId;
+                log.error(errorMsg);
+                throw new APIMgtResourceNotFoundException(errorMsg, ExceptionCodes.COMMENT_NOT_FOUND);
+            }
+        } catch (APIMgtDAOException e) {
+            String errorMsg = "Error occurred while deleting comment " + commentId;
+            log.error(errorMsg, e);
+            throw new APICommentException(errorMsg, e, e.getErrorHandler());
+        }
+
+    }
+
+    @Override
+    public void updateComment(Comment comment, String commentId, String apiId, String username)
+            throws APICommentException, APIMgtResourceNotFoundException {
+        validateCommentMaxCharacterLength(comment.getCommentText());
+        try {
+            failIfApiNotExists(apiId);
+            Comment oldComment = getApiDAO().getCommentByUUID(commentId, apiId);
+            if (oldComment != null) {
+                // if the update operation is done by a user who isn't the owner of the comment
+                if (!oldComment.getCommentedUser().equals(username)) {
+                    checkIfUserIsCommentModerator(username);
+                }
+                getApiDAO().updateComment(comment, commentId, apiId);
+            } else {
+                String errorMsg = "Couldn't find comment with comment_id : " + commentId + "and api_id : " + apiId;
+                log.error(errorMsg);
+                throw new APIMgtResourceNotFoundException(errorMsg, ExceptionCodes.COMMENT_NOT_FOUND);
+            }
+        } catch (APIMgtDAOException e) {
+            String errorMsg = "Error occurred while updating comment " + commentId;
+            log.error(errorMsg, e);
+            throw new APICommentException(errorMsg, e, e.getErrorHandler());
+        }
+    }
+
+    @Override
+    public List<Comment> getCommentsForApi(String apiId) throws APICommentException, APIMgtResourceNotFoundException {
+        try {
+            failIfApiNotExists(apiId);
+            List<Comment> commentList = getApiDAO().getCommentsForApi(apiId);
+            return commentList;
+        } catch (APIMgtDAOException e) {
+            String errorMsg = "Error occurred while retrieving comments for api " + apiId;
+            log.error(errorMsg, e);
+            throw new APICommentException(errorMsg, e, e.getErrorHandler());
+        }
+    }
+
+    @Override
+    public Comment getCommentByUUID(String commentId, String apiId) throws APICommentException,
+            APIMgtResourceNotFoundException {
+        Comment comment;
+        try {
+            failIfApiNotExists(apiId);
+            comment = getApiDAO().getCommentByUUID(commentId, apiId);
+            if (comment == null) {
+                String errorMsg = "Couldn't find comment with comment_id - " + commentId + " for api_id " + apiId;
+                log.error(errorMsg);
+                throw new APIMgtResourceNotFoundException(errorMsg, ExceptionCodes.COMMENT_NOT_FOUND);
+            }
+        } catch (APIMgtDAOException e) {
+            String errorMsg =
+                    "Error occurred while retrieving comment for comment_id " + commentId + " for api_id " + apiId;
+            log.error(errorMsg, e);
+            throw new APICommentException(errorMsg, e, e.getErrorHandler());
+        }
+        return comment;
+    }
+
+    /**
+     * Check whether current user is a comment moderator
+     *
+     * @param username username of the user
+     * @throws APICommentException if user does not have comment moderator role
+     */
+    private void checkIfUserIsCommentModerator(String username) throws APICommentException {
+        Set<String> roles = APIUtils.getAllRolesOfUser(username);
+        if (roles.contains(getConfig().getCommentModeratorRole())) {
+            return;
+        }
+        String errorMsg = "comment moderator permission needed";
+        log.error(errorMsg);
+        throw new APICommentException(errorMsg, ExceptionCodes.NEED_COMMENT_MODERATOR_PERMISSION);
+    }
+
+    /**
+     * Validates the comment length is less than or equal to max comment length in config
+     *
+     * @param commentText comment text
+     * @throws APICommentException if comment length is larger than max length allowed
+     */
+    private void validateCommentMaxCharacterLength(String commentText) throws APICommentException {
+        if (commentText.length() <= getConfig().getCommentMaxLength()) {
+            return;
+        }
+        String errorMsg = "comment text exceeds allowed maximum length of characters";
+        log.error(errorMsg);
+        throw new APICommentException(errorMsg, ExceptionCodes.COMMENT_LENGTH_EXCEEDED);
     }
 
     private boolean validateScope(String swagger) throws APIManagementException {

@@ -184,6 +184,16 @@ public class ApisApiServiceImpl extends ApisApiService {
         }
     }
 
+    /**
+     * Retrives A list of comments for a given API ID
+     *
+     * @param apiId   API ID
+     * @param limit   Max number of comments to return
+     * @param offset  Starting point of pagination
+     * @param request msf4j request object
+     * @return CommentListDTO object
+     * @throws NotFoundException if this method is not defined in ApisApiServiceImpl
+     */
     @Override
     public Response apisApiIdCommentsGet(String apiId, Integer limit, Integer offset, Request request)
             throws NotFoundException {
@@ -302,7 +312,7 @@ public class ApisApiServiceImpl extends ApisApiService {
     private String getEtag(String commentId, String loggedInUser) {
         String username = loggedInUser;
         try {
-            String lastUpdatedTime = RestApiUtil.getConsumer(username).getLastUpdatedTimeOfComment(commentId);
+            String lastUpdatedTime = RestAPIPublisherUtil.getApiPublisher(username).getLastUpdatedTimeOfComment(commentId);
             return ETagUtils.generateETag(lastUpdatedTime);
         } catch (APIManagementException e) {
             String errorMessage = "Error while retrieving last updated time of comment " + commentId;

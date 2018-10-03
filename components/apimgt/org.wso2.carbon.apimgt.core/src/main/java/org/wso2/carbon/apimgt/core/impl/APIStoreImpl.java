@@ -789,6 +789,7 @@ public class APIStoreImpl extends AbstractAPIManager implements APIStore, APIMOb
         validateCommentMaxCharacterLength(comment.getCommentText());
         String generatedUuid = UUID.randomUUID().toString();
         comment.setUuid(generatedUuid);
+        comment.setEntryPoint("APIStore");
         try {
             failIfApiNotExists(apiId);
             getApiDAO().addComment(comment, apiId);

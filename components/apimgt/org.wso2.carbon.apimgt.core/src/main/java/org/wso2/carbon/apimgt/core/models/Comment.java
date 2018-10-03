@@ -30,6 +30,7 @@ public final class Comment {
     private String apiId;
     private String category;
     private String parentCommentId;
+    private String entryPoint;
     private String commentedUser;
     private String commentText;
     private String createdUser;
@@ -67,6 +68,14 @@ public final class Comment {
 
     public void setParentCommentId(String parentCommentId) { 
         this.parentCommentId = parentCommentId; 
+    }
+
+    public String getEntryPoint() {
+        return entryPoint;
+    }
+
+    public void setEntryPoint(String entryPoint) {
+        this.entryPoint = entryPoint;
     }
 
     public String getCommentedUser() {

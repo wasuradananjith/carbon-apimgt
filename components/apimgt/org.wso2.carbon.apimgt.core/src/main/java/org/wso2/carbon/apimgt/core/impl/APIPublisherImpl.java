@@ -131,7 +131,7 @@ public class APIPublisherImpl extends AbstractAPIManager implements APIPublisher
     private static final Logger log = LoggerFactory.getLogger(APIPublisherImpl.class);
     private static final String ATTRIBUTE_DELIMITER = ",";
     private static final String KEY_VALUE_DELIMITER = ":";
-
+    private static final String ENTRY_POINT_PUBLISHER = "APIPublisher";
     // Map to store observers, which observe APIPublisher events
     private Map<String, EventObserver> eventObservers = new HashMap<>();
 
@@ -2559,6 +2559,7 @@ public class APIPublisherImpl extends AbstractAPIManager implements APIPublisher
         validateCommentMaxCharacterLength(comment.getCommentText());
         String generatedUuid = UUID.randomUUID().toString();
         comment.setUuid(generatedUuid);
+        comment.setEntryPoint(ENTRY_POINT_PUBLISHER);
         try {
             failIfApiNotExists(apiId);
             getApiDAO().addComment(comment, apiId);

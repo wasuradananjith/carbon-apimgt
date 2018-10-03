@@ -2,8 +2,8 @@ package org.wso2.carbon.apimgt.rest.api.publisher.dto;
 
 
 import com.google.gson.annotations.SerializedName;
+import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-
 import java.util.Objects;
 
 /**
@@ -21,6 +21,9 @@ public class CommentDTO   {
 
   @SerializedName("parentCommentId")
   private String parentCommentId = null;
+
+  @SerializedName("entryPoint")
+  private String entryPoint = null;
 
   @SerializedName("username")
   private String username = null;
@@ -110,6 +113,24 @@ public class CommentDTO   {
 
   public void setParentCommentId(String parentCommentId) {
     this.parentCommentId = parentCommentId;
+  }
+
+  public CommentDTO entryPoint(String entryPoint) {
+    this.entryPoint = entryPoint;
+    return this;
+  }
+
+   /**
+   * Get entryPoint
+   * @return entryPoint
+  **/
+  @ApiModelProperty(value = "")
+  public String getEntryPoint() {
+    return entryPoint;
+  }
+
+  public void setEntryPoint(String entryPoint) {
+    this.entryPoint = entryPoint;
   }
 
   public CommentDTO username(String username) {
@@ -222,7 +243,7 @@ public class CommentDTO   {
 
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(java.lang.Object o) {
     if (this == o) {
       return true;
     }
@@ -234,6 +255,7 @@ public class CommentDTO   {
         Objects.equals(this.apiId, comment.apiId) &&
         Objects.equals(this.category, comment.category) &&
         Objects.equals(this.parentCommentId, comment.parentCommentId) &&
+        Objects.equals(this.entryPoint, comment.entryPoint) &&
         Objects.equals(this.username, comment.username) &&
         Objects.equals(this.commentText, comment.commentText) &&
         Objects.equals(this.createdTime, comment.createdTime) &&
@@ -244,18 +266,19 @@ public class CommentDTO   {
 
   @Override
   public int hashCode() {
-    return Objects.hash(commentId, apiId, category, parentCommentId, username, commentText, createdTime, createdBy, lastUpdatedTime, lastUpdatedBy);
+    return Objects.hash(commentId, apiId, category, parentCommentId, entryPoint, username, commentText, createdTime, createdBy, lastUpdatedTime, lastUpdatedBy);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class CommentDTO {\n");
-
+    
     sb.append("    commentId: ").append(toIndentedString(commentId)).append("\n");
     sb.append("    apiId: ").append(toIndentedString(apiId)).append("\n");
     sb.append("    category: ").append(toIndentedString(category)).append("\n");
     sb.append("    parentCommentId: ").append(toIndentedString(parentCommentId)).append("\n");
+    sb.append("    entryPoint: ").append(toIndentedString(entryPoint)).append("\n");
     sb.append("    username: ").append(toIndentedString(username)).append("\n");
     sb.append("    commentText: ").append(toIndentedString(commentText)).append("\n");
     sb.append("    createdTime: ").append(toIndentedString(createdTime)).append("\n");
@@ -270,7 +293,7 @@ public class CommentDTO   {
    * Convert the given object to string with each line indented by 4 spaces
    * (except the first line).
    */
-  private String toIndentedString(Object o) {
+  private String toIndentedString(java.lang.Object o) {
     if (o == null) {
       return "null";
     }

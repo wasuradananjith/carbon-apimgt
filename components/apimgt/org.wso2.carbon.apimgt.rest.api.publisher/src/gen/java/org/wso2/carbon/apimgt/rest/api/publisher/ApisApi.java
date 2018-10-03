@@ -65,7 +65,7 @@ public class ApisApi implements Microservice  {
     @Produces({ "application/json" })
     @io.swagger.annotations.ApiOperation(value = "Delete an API comment", notes = "Remove a Comment ", response = void.class, authorizations = {
         @io.swagger.annotations.Authorization(value = "OAuth2Security", scopes = {
-            
+            @io.swagger.annotations.AuthorizationScope(scope = "apim:api_view", description = "View API")
         })
     }, tags={ "Delete", })
     @io.swagger.annotations.ApiResponses(value = { 
@@ -88,7 +88,7 @@ public class ApisApi implements Microservice  {
     @Produces({ "application/json" })
     @io.swagger.annotations.ApiOperation(value = "Get details of an API comment", notes = "Get the individual comment given by a username for a certain API. ", response = CommentDTO.class, authorizations = {
         @io.swagger.annotations.Authorization(value = "OAuth2Security", scopes = {
-            
+            @io.swagger.annotations.AuthorizationScope(scope = "apim:api_view", description = "View API")
         })
     }, tags={ "Retrieve", })
     @io.swagger.annotations.ApiResponses(value = { 
@@ -115,7 +115,7 @@ public class ApisApi implements Microservice  {
     @Produces({ "application/json" })
     @io.swagger.annotations.ApiOperation(value = "Update an API comment", notes = "Update a certain Comment ", response = CommentDTO.class, authorizations = {
         @io.swagger.annotations.Authorization(value = "OAuth2Security", scopes = {
-            
+            @io.swagger.annotations.AuthorizationScope(scope = "apim:api_view", description = "View API")
         })
     }, tags={ "Update", })
     @io.swagger.annotations.ApiResponses(value = { 
@@ -143,7 +143,7 @@ public class ApisApi implements Microservice  {
     @Produces({ "application/json" })
     @io.swagger.annotations.ApiOperation(value = "Retrieve API comments", notes = "Get a list of Comments that are already added to APIs ", response = CommentListDTO.class, authorizations = {
         @io.swagger.annotations.Authorization(value = "OAuth2Security", scopes = {
-            
+            @io.swagger.annotations.AuthorizationScope(scope = "apim:api_view", description = "View API")
         })
     }, tags={ "Retrieve", })
     @io.swagger.annotations.ApiResponses(value = { 
@@ -167,7 +167,7 @@ public class ApisApi implements Microservice  {
     @Produces({ "application/json" })
     @io.swagger.annotations.ApiOperation(value = "Add an API comment", notes = "", response = CommentDTO.class, authorizations = {
         @io.swagger.annotations.Authorization(value = "OAuth2Security", scopes = {
-            
+            @io.swagger.annotations.AuthorizationScope(scope = "apim:api_view", description = "View API")
         })
     }, tags={ "Create", })
     @io.swagger.annotations.ApiResponses(value = { 

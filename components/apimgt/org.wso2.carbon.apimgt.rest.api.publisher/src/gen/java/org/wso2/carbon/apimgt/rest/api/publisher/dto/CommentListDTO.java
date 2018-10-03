@@ -2,10 +2,11 @@ package org.wso2.carbon.apimgt.rest.api.publisher.dto;
 
 
 import com.google.gson.annotations.SerializedName;
+import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.wso2.carbon.apimgt.rest.api.publisher.dto.CommentDTO;
 import java.util.Objects;
 
 /**
@@ -103,7 +104,7 @@ public class CommentListDTO   {
 
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(java.lang.Object o) {
     if (this == o) {
       return true;
     }
@@ -126,7 +127,7 @@ public class CommentListDTO   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class CommentListDTO {\n");
-
+    
     sb.append("    count: ").append(toIndentedString(count)).append("\n");
     sb.append("    next: ").append(toIndentedString(next)).append("\n");
     sb.append("    previous: ").append(toIndentedString(previous)).append("\n");
@@ -139,7 +140,7 @@ public class CommentListDTO   {
    * Convert the given object to string with each line indented by 4 spaces
    * (except the first line).
    */
-  private String toIndentedString(Object o) {
+  private String toIndentedString(java.lang.Object o) {
     if (o == null) {
       return "null";
     }

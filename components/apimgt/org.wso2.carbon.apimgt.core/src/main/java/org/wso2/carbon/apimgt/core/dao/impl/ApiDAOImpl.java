@@ -1257,7 +1257,7 @@ public class ApiDAOImpl implements ApiDAO {
     @Override
     public Comment getCommentByUUID(String commentId, String apiId) throws APIMgtDAOException {
         final String query = "SELECT UUID, COMMENT_TEXT, USER_IDENTIFIER, API_ID, CATEGORY, PARENT_COMMENT_ID,"
-                + " CREATED_BY, CREATED_TIME, UPDATED_BY, LAST_UPDATED_TIME "
+                + " ENTRY_POINT, CREATED_BY, CREATED_TIME, UPDATED_BY, LAST_UPDATED_TIME "
                 + "FROM AM_API_COMMENTS WHERE UUID = ? AND API_ID = ?";
 
         try (Connection connection = DAOUtil.getConnection();
@@ -1309,6 +1309,7 @@ public class ApiDAOImpl implements ApiDAO {
         comment.setApiId(rs.getString("API_ID"));
         comment.setCategory(rs.getString("CATEGORY"));
         comment.setParentCommentId(rs.getString("PARENT_COMMENT_ID"));
+        comment.setEntryPoint(rs.getString("ENTRY_POINT"));
         comment.setCreatedUser(rs.getString("CREATED_BY"));
         comment.setCreatedTime(rs.getTimestamp("CREATED_TIME").toInstant());
         comment.setUpdatedUser(rs.getString("UPDATED_BY"));
@@ -1322,8 +1323,8 @@ public class ApiDAOImpl implements ApiDAO {
     public void addComment(Comment comment, String apiId) throws APIMgtDAOException {
         final String addCommentQuery =
                 "INSERT INTO AM_API_COMMENTS (UUID, COMMENT_TEXT, USER_IDENTIFIER, API_ID, " +
-                        "CREATED_BY, CREATED_TIME, UPDATED_BY, LAST_UPDATED_TIME, CATEGORY, PARENT_COMMENT_ID"
-                        + ") VALUES (?,?,?,?,?,?,?,?,?,?)";
+                        "CREATED_BY, CREATED_TIME, UPDATED_BY, LAST_UPDATED_TIME, CATEGORY, PARENT_COMMENT_ID,"
+                        + " ENTRY_POINT) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection connection = DAOUtil.getConnection();
              PreparedStatement statement = connection.prepareStatement(addCommentQuery)) {
             try {
@@ -1338,6 +1339,7 @@ public class ApiDAOImpl implements ApiDAO {
                 statement.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
                 statement.setString(9, comment.getCategory());
                 statement.setString(10, comment.getParentCommentId());
+                statement.setString(11, comment.getEntryPoint());
                 statement.execute();
                 connection.commit();
             } catch (SQLException e) {
@@ -1382,7 +1384,7 @@ public class ApiDAOImpl implements ApiDAO {
 
     @Override
     public void updateComment(Comment comment, String commentId, String apiId) throws APIMgtDAOException {
-        final String updateCommentQuery = "UPDATE AM_API_COMMENTS SET COMMENT_TEXT = ? "
+        final String updateCommentQuery = "UPDATE AM_API_COMMENTS SET COMMENT_TEXT = ? , CATEGORY = ? "
                 + ", UPDATED_BY = ? , LAST_UPDATED_TIME = ?"
                 + " WHERE UUID = ? AND API_ID = ?";
         try (Connection connection = DAOUtil.getConnection();
@@ -1390,10 +1392,11 @@ public class ApiDAOImpl implements ApiDAO {
             try {
                 connection.setAutoCommit(false);
                 statement.setString(1, comment.getCommentText());
-                statement.setString(2, comment.getUpdatedUser());
-                statement.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now()));
-                statement.setString(4, commentId);
-                statement.setString(5, apiId);
+                statement.setString(2, comment.getCategory());
+                statement.setString(3, comment.getUpdatedUser());
+                statement.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+                statement.setString(5, commentId);
+                statement.setString(6, apiId);
                 statement.execute();
                 connection.commit();
             } catch (SQLException e) {
@@ -1415,7 +1418,7 @@ public class ApiDAOImpl implements ApiDAO {
     public List<Comment> getCommentsForApi(String apiId) throws APIMgtDAOException {
         List<Comment> commentList = new ArrayList<>();
         final String getCommentsQuery = "SELECT UUID, COMMENT_TEXT, USER_IDENTIFIER, API_ID, CATEGORY,"
-                + " PARENT_COMMENT_ID, CREATED_BY, CREATED_TIME, UPDATED_BY, LAST_UPDATED_TIME "
+                + " PARENT_COMMENT_ID, ENTRY_POINT, CREATED_BY, CREATED_TIME, UPDATED_BY, LAST_UPDATED_TIME "
                 + "FROM AM_API_COMMENTS WHERE API_ID = ?";
         try (Connection connection = DAOUtil.getConnection();
              PreparedStatement statement = connection.prepareStatement(getCommentsQuery)) {

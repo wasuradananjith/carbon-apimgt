@@ -3522,6 +3522,8 @@ paths:
       summary: Retrieve API comments
       security:
       - OAuth2Security:
+          - apim:api_view
+      x-scope: apim:api_view
       description: |
         Get a list of Comments that are already added to APIs
       parameters:
@@ -3551,8 +3553,8 @@ paths:
       summary: Add an API comment
       security:
       - OAuth2Security:
-        - apim:subscribe
-      x-scope: apim:subscribe
+        - apim:api_view
+      x-scope: apim:api_view
       parameters:
       - $ref: '#/parameters/apiId'
       - in: body
@@ -3610,6 +3612,8 @@ paths:
       summary: Get details of an API comment
       security:
       - OAuth2Security:
+          - apim:api_view
+      x-scope:  apim:api_view
       description: |
         Get the individual comment given by a username for a certain API.
       parameters:
@@ -3663,8 +3667,8 @@ paths:
       summary: Delete an API comment
       security:
       - OAuth2Security:
-        - apim:subscribe
-      x-scope: apim:subscribe
+        - apim:api_view
+      x-scope: apim:api_view
       description: |
         Remove a Comment
       parameters:
@@ -3695,8 +3699,8 @@ paths:
       summary: Update an API comment
       security:
       - OAuth2Security:
-        - apim:subscribe
-      x-scope: apim:subscribe
+        - apim:api_view
+      x-scope: apim:api_view
       description: |
         Update a certain Comment
       parameters:
@@ -5156,6 +5160,8 @@ definitions:
       category:
         type: string
       parentCommentId:
+        type: string
+      entryPoint:
         type: string
       username:
         type: string

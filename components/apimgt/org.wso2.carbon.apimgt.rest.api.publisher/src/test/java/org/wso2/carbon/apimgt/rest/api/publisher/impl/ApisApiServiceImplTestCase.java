@@ -2244,6 +2244,7 @@ public class ApisApiServiceImplTestCase {
         commentDTO.setCommentText("comment text");
         commentDTO.setCategory("testCategory");
         commentDTO.setParentCommentId("");
+        commentDTO.setEntryPoint("APIPublisher");
         commentDTO.setCreatedBy("creater");
         commentDTO.setLastUpdatedBy("updater");
 
@@ -2255,6 +2256,7 @@ public class ApisApiServiceImplTestCase {
         comment.setCommentText("this is a comment");
         comment.setCategory("testCategory");
         comment.setParentCommentId("");
+        comment.setEntryPoint("APIPublisher");
         comment.setCreatedUser("createdUser");
         comment.setUpdatedUser("updatedUser");
         comment.setCreatedTime(time);
@@ -2291,6 +2293,7 @@ public class ApisApiServiceImplTestCase {
         commentDTO.setCommentText("comment text");
         commentDTO.setCategory("testCategory");
         commentDTO.setParentCommentId("");
+        commentDTO.setEntryPoint("APIPublisher");
         commentDTO.setCreatedBy("creater");
         commentDTO.setLastUpdatedBy("updater");
 
@@ -2302,6 +2305,7 @@ public class ApisApiServiceImplTestCase {
         comment.setCommentText("this is a comment");
         comment.setCategory("testCategory");
         comment.setParentCommentId("");
+        comment.setEntryPoint("APIPublisher");
         comment.setCreatedUser("createdUser");
         comment.setUpdatedUser("updatedUser");
         comment.setCreatedTime(time);
@@ -2349,6 +2353,7 @@ public class ApisApiServiceImplTestCase {
         comment.setCommentText("this is a comment");
         comment.setCategory("testCategory");
         comment.setParentCommentId("");
+        comment.setEntryPoint("APIPublisher");
         comment.setCreatedUser("createdUser");
         comment.setUpdatedUser("updatedUser");
         comment.setCreatedTime(time);
@@ -2407,6 +2412,7 @@ public class ApisApiServiceImplTestCase {
         comment1.setCommentText("this is a comment 1");
         comment1.setCategory("testCategory1");
         comment1.setParentCommentId("");
+        comment1.setEntryPoint("APIPublisher");
         comment1.setCreatedUser("createdUser1");
         comment1.setUpdatedUser("updatedUser1");
         comment1.setCreatedTime(time);
@@ -2419,6 +2425,7 @@ public class ApisApiServiceImplTestCase {
         comment2.setCommentText("this is a comment 2");
         comment2.setCategory("testCategory2");
         comment2.setParentCommentId("");
+        comment2.setEntryPoint("APIPublisher");
         comment2.setCreatedUser("createdUser2");
         comment2.setUpdatedUser("updatedUser2");
         comment2.setCreatedTime(time);
@@ -2479,6 +2486,7 @@ public class ApisApiServiceImplTestCase {
         commentDTO.setCommentText("comment text");
         commentDTO.setCategory("testCategory");
         commentDTO.setParentCommentId("");
+        commentDTO.setEntryPoint("APIPublisher");
         commentDTO.setCreatedBy("creater");
         commentDTO.setLastUpdatedBy("updater");
 
@@ -2488,6 +2496,7 @@ public class ApisApiServiceImplTestCase {
         comment.setCommentText("this is a comment");
         comment.setCategory("testCategory");
         comment.setParentCommentId("");
+        comment.setEntryPoint("APIPublisher");
         comment.setCreatedUser("createdUser");
         comment.setUpdatedUser("updatedUser");
         comment.setCreatedTime(time);
@@ -2523,6 +2532,7 @@ public class ApisApiServiceImplTestCase {
         commentDTO.setCommentText("comment text");
         commentDTO.setCategory("testCategory");
         commentDTO.setParentCommentId("");
+        commentDTO.setEntryPoint("APIPublisher");
         commentDTO.setCreatedBy("creater");
         commentDTO.setLastUpdatedBy("updater");
 
@@ -2532,6 +2542,7 @@ public class ApisApiServiceImplTestCase {
         comment.setCommentText("this is a comment");
         comment.setCategory("testCategory");
         comment.setParentCommentId("");
+        comment.setEntryPoint("APIPublisher");
         comment.setCreatedUser("createdUser");
         comment.setUpdatedUser("updatedUser");
         comment.setCreatedTime(time);

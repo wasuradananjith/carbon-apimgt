@@ -2579,8 +2579,10 @@ public class APIPublisherImpl extends AbstractAPIManager implements APIPublisher
             failIfApiNotExists(apiId);
             Comment comment = apiDAO.getCommentByUUID(commentId, apiId);
             if (comment != null) {
-                // if the delete operation is done by a user who isn't the owner of the comment
-                if (!comment.getCommentedUser().equals(username)) {
+                 /*if the delete operation is done by a user who isn't the owner of the comment
+                  and with a different end point*/
+                if (!(comment.getCommentedUser().equals(username) &&
+                        comment.getEntryPoint().equals(ENTRY_POINT_PUBLISHER))) {
                     checkIfUserIsCommentModerator(username);
                 }
                 apiDAO.deleteComment(commentId, apiId);
@@ -2605,9 +2607,13 @@ public class APIPublisherImpl extends AbstractAPIManager implements APIPublisher
             failIfApiNotExists(apiId);
             Comment oldComment = getApiDAO().getCommentByUUID(commentId, apiId);
             if (oldComment != null) {
-                // if the update operation is done by a user who isn't the owner of the comment
-                if (!oldComment.getCommentedUser().equals(username)) {
-                    checkIfUserIsCommentModerator(username);
+                /*if the update operation is done by a user who isn't the owner of the comment
+                  and with a different end point*/
+                if (!(oldComment.getCommentedUser().equals(username) &&
+                        oldComment.getEntryPoint().equals(ENTRY_POINT_PUBLISHER))) {
+                    String errorMsg = "The user " + username + " does not have permission to update this comment";
+                    log.error(errorMsg);
+                    throw new APICommentException(errorMsg, ExceptionCodes.NO_UPDATE_PERMISSIONS);
                 }
                 getApiDAO().updateComment(comment, commentId, apiId);
             } else {

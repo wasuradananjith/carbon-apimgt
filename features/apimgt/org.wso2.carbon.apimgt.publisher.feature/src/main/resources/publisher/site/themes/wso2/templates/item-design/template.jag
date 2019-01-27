@@ -5,8 +5,9 @@
     var site = require("/site/conf/site.json");
     var enableRestrictByRoles = site.enableRestrictByRoles;
     var isWSAPI = api && api.type.toUpperCase() == "WS";
+    var isGraphQLAPI = api && api.type.toUpperCase() == "GRAPHQL";
     var ws_session = "HTTP";
-    
+
     if(api){
         var apiUrlId = "name="+encode.forHtml(api.name)+"&version="+encode.forHtml(api.version)+"&provider="+encode.forHtml(api.provider);
         var _description = encode.forHtml(api.description);
@@ -15,7 +16,7 @@
     else{
         var apiUrlId = "";
         var _description = "";
-        var _tags = "";        
+        var _tags = "";
     }
 %>
 <script language="javascript">
@@ -25,7 +26,7 @@
       { "value": "<%=i18n.localize("Application")%>", "text":"<%=i18n.localize("Application")%>"},
       { "value": "<%=i18n.localize("Application User")%>", "text":"<%=i18n.localize("Application User")%>"},
       { "value": "<%=i18n.localize("Application & Application User")%>", "text":"<%=i18n.localize("Application & Application User")%>"}
-    ];    
+    ];
     var ws = false;
 <%if(session.get("ws") || isWSAPI) {%>
                 ws=true;
@@ -36,7 +37,17 @@
         ws_session = api.type;
     }
             }%>
-</script>  
+    var graphql = false;
+<%if(session.get("graphql") || isGraphQLAPI) {%>
+                graphql=true;
+    <%if(session) {
+        ws_session = session.get("graphql");
+    }
+        if(isGraphQLAPI) {
+            ws_session = api.type;
+        }
+    }%>
+</script>
 <div id="item-add">
 <%
     var design_w_link = jagg.url('/design?'+apiUrlId);
@@ -45,13 +56,13 @@
 
     var implement_wlabel = "";
     var manage_wlabel = "";
-    if(!api){ 
-        var design_w_link = '#'; 
-        var implement_w_link = '#'; 
-        var manage_w_link = '#'; 
+    if(!api){
+        var design_w_link = '#';
+        var implement_w_link = '#';
+        var manage_w_link = '#';
     }
 
-    var implement_wlabel = "";    
+    var implement_wlabel = "";
     if(api && api.implementation != null){
         implement_wlabel = "completed"
     }
@@ -65,7 +76,7 @@
         manage_wlabel = "completed";
     } else {
         var manage_w_link = '#';
-    }         
+    }
 %>
 
 
@@ -74,8 +85,8 @@
             <h2><%= encode.forHtml(api.name) %>: <%= encode.forHtml(api.context) %></h2>
         <% }else{ %>
             <h2><%=i18n.localize("Design API")%></h2>
-        <% } %>    
-    </div> 
+        <% } %>
+    </div>
 
     <div class="content-section shadow-up">
     	<div class="content-data">
@@ -379,7 +390,7 @@
 								</div>
 							</div>
 						</div>
-                        <%if(ws_session == "HTTP" && !isWSAPI){%>
+                        <%if(ws_session == "HTTP" && !(isWSAPI || isGraphQLAPI)){%>
 							<div class="panel panel-default">
 								<div class="panel-heading">
 									<h4 class="panel-title">
@@ -492,7 +503,7 @@
 		</div>
 	</div>
 </div>
-	
+
 
 
 <script type="text/javascript">
@@ -550,15 +561,15 @@
             <input type="hidden" value="validateSwagger" name="action"/>
             <input type="hidden" id="swaggerDefinition" name="swaggerDefinition" value="" />
         </form>
-		<span class="fw-stack fw-lg" style="font-size:1em"> 
-			<i class="fw fw-circle-outline fw-stack-2x"></i> 
-			<i class="fw fw-save fw-stack-1x"></i> 
-		</span>    	
+		<span class="fw-stack fw-lg" style="font-size:1em">
+			<i class="fw fw-circle-outline fw-stack-2x"></i>
+			<i class="fw fw-save fw-stack-1x"></i>
+		</span>
     	<%=i18n.localize("Apply Changes")%>
     </button>
     <button class="btn btn-secondary" data-dismiss="modal" aria-hidden="true" id="close_swagger_editor"><%=i18n.localize("Discard Changes")%></button>
-    </div>              
-</div>   
+    </div>
+</div>
 
 <!-- Import Modal -->
 		<div aria-hidden="true" aria-labelledby="myModalLabel" class="modal fade" id="swaggerUpload" role="dialog" tabindex="-1">
@@ -735,7 +746,7 @@
 				</span>&nbsp;<%=i18n.localize("Add Request Body Content")%>
 	</a>
   {{/if}}
-</div>  
+</div>
 </script>
 
 <script id="designer-sequence-template" type="text/x-handlebars-template">
@@ -803,11 +814,11 @@
         <div class="form-group">
             <label class="col-sm-3 control-label" for=""></label>
             <div class="col-sm-9">
-                {{#each verbs}}    
+                {{#each verbs}}
 					<label class="checkbox" id="{{ . }}" style="text-transform:uppercase;">
                             <input type="checkbox" value="{{ . }}" class="http_verb_select">
                             <span class="helper"> {{ . }}</span>
-                    </label>         
+                    </label>
                 {{/each}}
                     <div id="options" style="display: none;" >
 						<label class="checkbox">
@@ -817,10 +828,10 @@
 								<span class="icon fw-stack fw-lg" style="font-size:6px">
 										                   <i class="fw fw-circle fw-stack-2x"></i>
 										                   <i class="fw fw-question fw-stack-1x fw-inverse" style="font-size:8px"></i>
-										                </span>	
+										                </span>
 							</a>
                         <p id="options_help" class="hide"><%=i18n.localize("Select the OPTIONS method to send OPTIONS calls to the backend. If OPTIONS method is not selected, OPTIONS calls will be returned from the Gateway with allowed methods.")%></p>
-                    </label>  
+                    </label>
 
                         <label id="less">
 					 <%=i18n.localize("less")%><span class="icon fw-stack"/>
@@ -845,12 +856,12 @@
 	                                    <i class="fw fw-circle-outline fw-stack-2x"></i>
 	                 	</span>&nbsp;<%=i18n.localize("Add")%></button>
             </div>
-        </div>        
+        </div>
     </div>
 
 <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
 
-<table style="width:100%">                       
+<table style="width:100%">
 {{#each doc.paths}}
     {{# each this}}
 		{{#if this.responses}}
@@ -872,7 +883,7 @@
     {{/each}}
 {{/each}}
 </table>
-</div>                                       
+</div>
 </script>
 
 <script>
@@ -895,9 +906,9 @@
 <% }else{%>
         $("body").on("api_saved" , function(e){
             var designer = APIDesigner();
-            location.href = "<%= jagg.url("/design") %>?name="+designer.saved_api.name+"&version="+designer.saved_api.version+"&provider="+designer.saved_api.provider;                
-        });    
-<% } %>    
+            location.href = "<%= jagg.url("/design") %>?name="+designer.saved_api.name+"&version="+designer.saved_api.version+"&provider="+designer.saved_api.provider;
+        });
+<% } %>
         $('#visibility').change(function(){
             var visibility = $('#visibility').find(":selected").val();
             if (visibility == "public" || visibility == "private" || visibility == "controlled"){
@@ -920,15 +931,15 @@
         $('#access-control').trigger('change');
 
         $('#go_to_implement').click(function(e){
-            $("body").unbind("api_saved");            
+            $("body").unbind("api_saved");
             $("body").on("api_saved" , function(e){
                 var designer = APIDesigner();
-                location.href = "<%= jagg.url("/implement")%>?name="+designer.saved_api.name+"&version="+designer.saved_api.version+"&provider="+designer.saved_api.provider;                
+                location.href = "<%= jagg.url("/implement")%>?name="+designer.saved_api.name+"&version="+designer.saved_api.version+"&provider="+designer.saved_api.provider;
             });
             $("#design_form").submit();
         });
 
-        <% 
+        <%
             var swagger = session.get("swagger");
             if(swagger){ %>
                 $.get( jagg.site.context + "/site/blocks/item-design/ajax/import.jag", { "action" : "session" } , function( data ) {
@@ -941,7 +952,7 @@
 	                    }catch(err){
 
 	                    }
-	                }	                
+	                }
 	                if(swag != ""){
 	                    var designer = APIDesigner();
 	                    designer.load_api_document(swag);

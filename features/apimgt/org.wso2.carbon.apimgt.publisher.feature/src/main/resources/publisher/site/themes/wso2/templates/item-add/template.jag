@@ -67,7 +67,7 @@
 									<label for="swagger-url" class="error swaggerUrlError" style="display:none"><%=i18n.localize("Please use a valid swagger url")%></label>
 								</div>
 							</div>
-						</div>					
+						</div>
 			          <input name="action" value="start" type="hidden"/>
 			          <input name="type" value="rest" type="hidden"/>
 			          <button id="startFromExistingAPI" class="btn btn-primary has-spinner" type="button"><%=i18n.localize("Start Creating")%></button>
@@ -224,6 +224,49 @@
 				</div>
 			</div>
 		</div>
-        </div>	
+		<div class="panel panel-default">
+            <div class="panel-heading" role="tab" id="headingFive" data-toggle="collapse" data-parent=".accordion" href="#accordion1-collapse5" aria-expanded="true" aria-controls="accordion1-collapse1">
+                <h4 class="panel-title">
+                    <label class="radio">
+                        <input class="create-api" type="radio" name="create-api" />
+                        <span class="helper"></span>
+                    </label>
+                    <div>
+                        <div class="heading"><%=i18n.localize("I Have an Existing GraphQL API")%></div>
+                        <div class="description truncate" title="<%=i18n.localize("Use an existing GraphQL API's endpoint and the schema definition to create an API.")%>"><%=i18n.localize("Use an existing API's endpoint or the API Swagger definition to create an API.")%></div>
+                        <div class="status">
+                            <i class="fw fw-down"></i>
+                        </div>
+                    </div>
+                    <div class="clearfix"></div>
+                </h4>
+             </div>
+            <div id="accordion1-collapse5" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingFive">
+                <div class="panel-body">
+                     <form class="form-horizontal" id="startFromExistingGraphQLAPI-form" enctype="multipart/form-data" action="<%= jagg.url("/site/blocks/item-design/ajax/add.jag") %>">
+                        <div class="form-group">
+                            <div class="controls col-sm-12">
+                                <div class="input-group input-wrap file-upload-control">
+                                    <input type="text" class="form-control" placeholder="Click Browse to add the schema file" readonly>
+                                    <input id="schema-file" name="schema-file" type="file" title="schema-file" class="form-control" multiple>
+                                    <label for="schema-file" class="error schemaFileError" style="display:none"><%=i18n.localize("Please use a valid schema file")%></label>
+                                    <div class="input-group-btn">
+                                        <button class="btn btn-primary browse" type="button" title="Browse File">
+                                            <i class="fw fw-file-browse" aria-hidden="true"></i> <span
+                                                class="hidden-xs"><%=i18n.localize("Browse")%></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                      <input name="action" value="start" type="hidden"/>
+                      <input name="type" value="graphql" type="hidden"/>
+                      <button id="startFromExistingGraphQLAPI" class="btn btn-primary has-spinner" type="button"><%=i18n.localize("Start Creating")%></button>
+                    </form>
+                </div>
+             </div>
+		    </div>
+        </div>
 	</div>
 <% }); %>

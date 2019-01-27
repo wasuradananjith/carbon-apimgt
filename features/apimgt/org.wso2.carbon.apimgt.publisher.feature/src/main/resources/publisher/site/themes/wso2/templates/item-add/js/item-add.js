@@ -68,6 +68,19 @@ $( document ).ready(function() {
         }
     });
 
+    $('#schema-file').change(function () {
+        $('.schemaFileError').hide();
+        $('#schema-file').removeClass('error');
+    });
+
+    $('#schema-file').keyup(function () {
+        $('.schemaFileError').hide();
+        $('#schema-file').removeClass('error');
+        if ($('#schema-file').val().length != 0) {
+            $('#startFromExistingGraphQLAPI').removeAttr("disabled");
+        }
+    });
+
     $('#swagger-url').change(function () {
         $('.swaggerUrlError').hide();
         $('#swagger-url').removeClass('error');
@@ -121,10 +134,48 @@ $( document ).ready(function() {
                     } else {
                         jagg.message({content:responseText.message,type:"error"});
                     }
-                }                
+                }
             }   ,error: function() {
                 $(btn).buttonLoader('stop');
                 jagg.message({content:"Error occurred while importing swagger URL",type:"error"});
+
+            }, dataType: 'json'
+        });
+    });
+
+    $("#startFromExistingGraphQLAPI").click(function(){
+        var schemaFile = $('#schema-file').val();
+        if (schemaFile.trim() == "") {
+            $('#schema-file').addClass('error');
+            $('.schemaFileError').show();
+            return;
+        }
+        var btn = $(this);
+        $(btn).buttonLoader('start');
+        $('#startFromExistingGraphQLAPI-form').ajaxSubmit({
+            success:function(responseText, statusText, xhr, $form){
+                $(btn).buttonLoader('stop');
+                if (!responseText.error) {
+                    window.location = jagg.site.context + "/design-graphql"
+                } else {
+                    if (responseText.message == "timeout") {
+                        if (ssoEnabled) {
+                            var currentLoc = window.location.pathname;
+                            if (currentLoc.indexOf(".jag") >= 0) {
+                                location.href = "index.jag";
+                            } else {
+                                location.href = 'site/pages/index.jag';
+                            }
+                        } else {
+                            jagg.showLogin();
+                        }
+                    } else {
+                        jagg.message({content:responseText.message,type:"error"});
+                    }
+                }
+            }   ,error: function() {
+                $(btn).buttonLoader('stop');
+                jagg.message({content:"Error occurred while importing schema file",type:"error"});
 
             }, dataType: 'json'
         });
@@ -160,7 +211,7 @@ $( document ).ready(function() {
         $('#startFromExistingSOAPEndpoint-form').ajaxSubmit({
             success:function(responseText, statusText, xhr, $form){
                 $(btn).buttonLoader('stop');
-                if (!responseText.error) {                    
+                if (!responseText.error) {
                     window.location = jagg.site.context + "/design"
                 }else {
                     if (responseText.message == "timeout") {
@@ -177,11 +228,11 @@ $( document ).ready(function() {
                     } else {
                         jagg.message({content:responseText.message,type:"error"});
                     }
-                }                
+                }
             }, dataType: 'json'
         });
     });
-    
+
 
     $('.create-api').click(function(){
         $('.create-options').each(function(){

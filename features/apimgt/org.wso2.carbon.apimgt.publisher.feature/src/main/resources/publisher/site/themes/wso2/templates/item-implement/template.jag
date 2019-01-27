@@ -174,13 +174,22 @@
 													                </span>
 								                            	</a>
 								                            </label>
-							                                <div class="col-xs-12 col-sm-4 col-md-4 col-lg-4">
+							                                <%if(api.type.toUpperCase() === "GRAPHQL") {%>
+							                                        <div class="col-xs-12 col-sm-4 col-md-4 col-lg-4">
+                                                                        <select class="form-control select required" id="endpoint_type" name="endpoint_type" disabled>
+                                                                            <option value="http"  {{#if http }}selected="selected"{{/if}}>HTTP/REST Endpoint</option>
+                                                                        </select>
+							                                        </div>
+							                                <%}%>
+							                                <%if(api.type.toUpperCase() != "GRAPHQL") {%>
+							                                    <div class="col-xs-12 col-sm-4 col-md-4 col-lg-4">
 							                                    <select class="form-control select required" id="endpoint_type" name="endpoint_type">
 							                                        <option value="http"  {{#if http }}selected="selected"{{/if}}>HTTP/REST Endpoint</option>
 							                                        <option value="address" {{#if address }}selected="selected"{{/if}}>HTTP/SOAP Endpoint</option>
 							                                        <option value="default" {{#if default }}selected="selected"{{/if}}>Dynamic Endpoint</option>
 							                                    </select>
-							                                </div>
+							                                <%}%>
+							                               </div>
 							                            </div>
                                                                     <%}%>
 							                            {{#if default }}

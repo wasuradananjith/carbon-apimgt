@@ -585,7 +585,7 @@ APIDesigner.prototype.init_controllers = function(){
                             for(var method in pathObj){
                                 if(pathObj.hasOwnProperty(method)){
                                     var methodObj = pathObj[method];
-                                    
+
                                     //If the scope is added to the resource, remove it.
                                     if(methodObj['x-scope'] && methodObj['x-scope'] === scopeKeyToDelete){
                                         methodObj['x-scope'] = "";
@@ -1388,7 +1388,7 @@ $(document).ready(function(){
         submitHandler: function(form) {
         var designer = APIDesigner();
 
-        if(designer.has_resources() == false && !ws ){
+            if(designer.has_resources() == false && !(ws || graphql)){
         	$("#messageModal div.modal-footer").html("");
             jagg.message({
                 content: i18n.t("At least one resource should be specified. Do you want to add a wildcard resource (/*)?"),
@@ -1513,7 +1513,7 @@ $(document).ready(function(){
             output.src = URL.createObjectURL(this.files[0]);
         }
     });
-    
+
     if($("#wsdl").val()) {
         var wsdlInputVal = $("#wsdl").val();
         if(wsdlInputVal.endsWith(".zip")) {

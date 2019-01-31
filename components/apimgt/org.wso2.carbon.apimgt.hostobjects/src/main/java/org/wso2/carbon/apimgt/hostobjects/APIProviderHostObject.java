@@ -1028,6 +1028,10 @@ public class APIProviderHostObject extends ScriptableObject {
             // Save the swagger definition in the registry
             apiProvider.saveSwaggerDefinition(api, (String) apiData.get("swagger", apiData));
         }
+        if(apiData.get("schema", apiData) != null ){
+            Object schema = apiData.get("schema", apiData);
+            apiProvider.saveSchema(api, (String) apiData.get("schema", apiData));
+        }
         return saveAPI(apiProvider, api, fileHostObject, false);
     }
 
@@ -5547,6 +5551,7 @@ public class APIProviderHostObject extends ScriptableObject {
                     APIIdentifier apiIdentifier = api.getId();
                     row.put("name", row, apiIdentifier.getApiName());
                     row.put("version", row, apiIdentifier.getVersion());
+                    row.put("type", row, api.getType());
                     row.put("provider", row, APIUtil.replaceEmailDomainBack(apiIdentifier.getProviderName()));
                     row.put("status", row, checkValue(api.getStatus()));
                     row.put("thumb", row, getWebContextRoot(api.getThumbnailUrl()));
@@ -5645,7 +5650,7 @@ public class APIProviderHostObject extends ScriptableObject {
         swagger.setPaths(paths);
         return Json.pretty(swagger);
     }
-    
+
     /**
      * Download microgateway usage report
      *

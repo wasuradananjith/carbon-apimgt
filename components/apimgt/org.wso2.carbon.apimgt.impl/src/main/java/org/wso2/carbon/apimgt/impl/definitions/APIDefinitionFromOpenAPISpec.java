@@ -237,6 +237,47 @@ public class APIDefinitionFromOpenAPISpec extends APIDefinition {
         }
     }
 
+    /**
+     * This method saves schema definition json in the registry
+     *
+     * @param api               API to be saved
+     * @param apiDefinitionJSON API definition as JSON string
+     * @param registry          user registry
+     * @throws APIManagementException
+     */
+    @Override
+    public void saveSchemaDefinition(API api, String apiDefinitionJSON, Registry registry) throws APIManagementException {
+        String apiName = api.getId().getApiName();
+        String apiVersion = api.getId().getVersion();
+        String apiProviderName = api.getId().getProviderName();
+
+        try {
+            String resourcePath = APIUtil.getOpenAPIDefinitionFilePath(apiName, apiVersion, apiProviderName);
+            resourcePath = resourcePath + APIConstants.API_SCHEMA_DEFINITION_RESOURCE_NAME;
+            Resource resource;
+            if (!registry.resourceExists(resourcePath)) {
+                resource = registry.newResource();
+            } else {
+                resource = registry.get(resourcePath);
+            }
+            resource.setContent(apiDefinitionJSON);
+            resource.setMediaType("application/json");
+            registry.put(resourcePath, resource);
+
+            String[] visibleRoles = null;
+            if (api.getVisibleRoles() != null) {
+                visibleRoles = api.getVisibleRoles().split(",");
+            }
+
+            //Need to set anonymous if the visibility is public
+            APIUtil.clearResourcePermissions(resourcePath, api.getId(), ((UserRegistry) registry).getTenantId());
+            APIUtil.setResourcePermissions(apiProviderName, api.getVisibility(), visibleRoles, resourcePath);
+
+        } catch (RegistryException e) {
+            handleException("Error while adding Schema Definition for " + apiName + '-' + apiVersion, e);
+        }
+    }
+
 
     /**
      * This method returns api definition json for given api

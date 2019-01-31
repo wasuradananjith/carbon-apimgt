@@ -172,11 +172,12 @@ public final class APIConstants {
     public static final String WSDL_FILE = "wsdlFile";
     public static final String UPDATED_WSDL_ZIP = "updated.zip";
     public static final String FILE_URI_PREFIX = "file://";
-    
+
     public static final String API_DOC_RESOURCE_NAME = "api-doc.json";
 
     public static final String API_DOC_1_2_RESOURCE_NAME = "/api-doc";
     public static final String API_OAS_DEFINITION_RESOURCE_NAME = "swagger.json";
+    public static final String API_SCHEMA_DEFINITION_RESOURCE_NAME = "schema.json";
 
     public static final String API_ICON_IMAGE = "icon";
 
@@ -340,7 +341,7 @@ public final class APIConstants {
     public static final String IDENTITY_OAUTH2_FIELD_TIME_CREATED = "TIME_CREATED";
     public static final String IDENTITY_OAUTH2_FIELD_VALIDITY_PERIOD = "VALIDITY_PERIOD";
     public static final String IDENTITY_OAUTH2_FIELD_USER_DOMAIN = "USER_DOMAIN";
-    
+
     public static final String DOT = ".";
     public static final String EXP = "exp";
     public static final String JWT = "JWT";

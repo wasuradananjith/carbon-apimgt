@@ -59,6 +59,15 @@ public abstract class APIDefinition {
     public abstract void saveAPIDefinition(API api, String apiDefinitionJSON, Registry registry) throws APIManagementException;
 
     /**
+     * This method saves the schema definition
+     *
+     * @param api               API to be saved
+     * @param apiDefinitionJSON API definition as JSON string
+     * @param registry          user registry
+     */
+    public abstract void saveSchemaDefinition(API api, String apiDefinitionJSON, Registry registry) throws APIManagementException;
+
+    /**
      * This method reads the API definition from registry
      *
      * @param apiIdentifier api identifier

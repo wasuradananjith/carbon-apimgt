@@ -1016,6 +1016,57 @@ public abstract class AbstractAPIManager implements APIManager {
     }
 
     /**
+     * Returns the graphql schema content in registry specified by the schema name
+     *
+     * @param apiId Api Identifier
+     * @return schema content matching name if exist else null
+     */
+    @Override
+    public String getGraphqlSchema(APIIdentifier apiId) throws APIManagementException {
+        String schemaDoc = null;
+        String schemaName = apiId.getProviderName() + "--" + apiId.getApiName() +
+                apiId.getVersion() + ".txt";
+        String schemaResourcePath = APIConstants.API_GRAPHQLSCHEMA_RESOURCE_LOCATION + schemaName;
+        try {
+            if (registry.resourceExists(schemaResourcePath)) {
+                Resource wsdlResource = registry.get(schemaResourcePath);
+                schemaDoc = IOUtils.toString(wsdlResource.getContentStream(),
+                        RegistryConstants.DEFAULT_CHARSET_ENCODING);
+            }
+        } catch (RegistryException e) {
+            String msg = "Error while getting schema file from the registry ";
+            log.error(msg, e);
+            throw new APIManagementException(msg, e);
+        } catch (IOException e) {
+            String error = "Error occurred while getting the content of schema " + schemaName;
+            log.error(error);
+            throw new APIManagementException(error, e);
+        }
+        return schemaDoc;
+    }
+
+    /**
+     * Create a wsdl in the path specified.
+     *
+     * @param resourcePath   Registry path of the resource
+     * @param schemaDefinition wsdl content
+     */
+    @Override
+    public void uploadGraphqlSchema(String resourcePath, String schemaDefinition)
+            throws APIManagementException {
+        try {
+            Resource resource = registry.newResource();
+            resource.setContent(schemaDefinition);
+            resource.setMediaType(String.valueOf(ContentType.TEXT_PLAIN));
+            registry.put(resourcePath, resource);
+        } catch (RegistryException e) {
+            String msg = "Error while uploading graphql schema to from the registry ";
+            log.error(msg, e);
+            throw new APIManagementException(msg, e);
+        }
+    }
+
+    /**
      * Update a existing wsdl in the path specified
      *
      * @param resourcePath   Registry path of the resource

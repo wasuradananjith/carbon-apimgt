@@ -655,6 +655,22 @@ public interface APIManager {
     void uploadWsdl(String resourcePath, String wsdlDefinition) throws APIManagementException;
 
     /**
+     * Returns the graphql schema content in registry specified by the schema name
+     *
+     * @param apiId api identifier of the API
+     * @return schema content matching name if exist else null
+     */
+    String getGraphqlSchema(APIIdentifier apiId) throws APIManagementException;
+
+    /**
+     * Create a graphql schema in the path specified.
+     *
+     * @param resourcePath   Registry path of the resource
+     * @param schemaDefinition wsdl content
+     */
+    void uploadGraphqlSchema(String resourcePath, String schemaDefinition) throws APIManagementException;
+
+    /**
      * Update a existing wsdl in the path specified
      *
      * @param resourcePath   Registry path of the resource

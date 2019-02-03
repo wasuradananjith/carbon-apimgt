@@ -162,9 +162,12 @@ public final class APIConstants {
 
     // registry location for wsdl files
     public static final String API_WSDL_RESOURCE_LOCATION = API_APPLICATION_DATA_LOCATION + "/wsdls/";
+    public static final String API_GRAPHQLSCHEMA_RESOURCE_LOCATION = API_APPLICATION_DATA_LOCATION + "/graphqlSchemas/";
     public static final String API_WSDL_RESOURCE = API_APPLICATION_DATA_LOCATION+"/wsdls";
     public static final String WSDL_FILE_EXTENSION = ".wsdl";
+    public static final String GRAPHQLSCHEMA_FILE_EXTENSION = ".txt";
     public static final String WSDL_PROVIDER_SEPERATOR = "--";
+    public static final String GRAPHQLSCHEMA_PROVIDER_SEPERATOR = "--";
     public static final String API_WSDL_ARCHIVE_LOCATION = "archives/";
     public static final String API_WSDL_EXTRACTED_DIRECTORY = "extracted";
     public static final String WSDL_ARCHIVES_TEMP_FOLDER = "WSDL-archives";

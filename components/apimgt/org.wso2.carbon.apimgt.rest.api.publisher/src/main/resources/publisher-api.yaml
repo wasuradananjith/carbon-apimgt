@@ -3702,11 +3702,12 @@ definitions:
             example: false
           type:
             type: string
-            description: The api creation type to be used. Accepted values are HTTP, WS, SOAPTOREST
+            description: The api creation type to be used. Accepted values are HTTP, WS, SOAPTOREST, GRAPHQL
             enum:
               - HTTP
               - WS
               - SOAPTOREST
+              - GRAPHQL
             example: HTTP
             default: HTTP
           transport:

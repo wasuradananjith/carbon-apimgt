@@ -60,8 +60,8 @@ public class ExportApiUtil {
         //If not specified status is preserved by default
         boolean isStatusPreserved = preserveStatus == null || preserveStatus;
 
-        if (name == null || version == null || providerName == null) {
-            RestApiUtil.handleBadRequest("'name', 'version' or 'provider' should not be null", log);
+        if (name == null || version == null) {
+            RestApiUtil.handleBadRequest("'name' or 'version' should not be null", log);
         }
 
         try {
@@ -70,6 +70,12 @@ public class ExportApiUtil {
                     ExportFormat.YAML;
 
             userName = RestApiUtil.getLoggedInUsername();
+
+            // If the provider name is not given, take the current logged in user's username as the provider name
+            if (providerName == null){
+                providerName = userName;
+            }
+
             //provider names with @ signs are only accepted
             apiDomain = MultitenantUtils.getTenantDomain(providerName);
             apiRequesterDomain = RestApiUtil.getLoggedInUserTenantDomain();

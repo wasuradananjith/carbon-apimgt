@@ -54,34 +54,7 @@ import org.wso2.carbon.apimgt.api.dto.CertificateInformationDTO;
 import org.wso2.carbon.apimgt.api.dto.CertificateMetadataDTO;
 import org.wso2.carbon.apimgt.api.dto.ClientCertificateDTO;
 import org.wso2.carbon.apimgt.api.dto.UserApplicationAPIUsage;
-import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.api.model.APICategory;
-import org.wso2.carbon.apimgt.api.model.APIIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIProduct;
-import org.wso2.carbon.apimgt.api.model.APIProductIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIProductResource;
-import org.wso2.carbon.apimgt.api.model.APIStateChangeResponse;
-import org.wso2.carbon.apimgt.api.model.APIStatus;
-import org.wso2.carbon.apimgt.api.model.APIStore;
-import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
-import org.wso2.carbon.apimgt.api.model.BlockConditionsDTO;
-import org.wso2.carbon.apimgt.api.model.CORSConfiguration;
-import org.wso2.carbon.apimgt.api.model.Documentation;
-import org.wso2.carbon.apimgt.api.model.DuplicateAPIException;
-import org.wso2.carbon.apimgt.api.model.EndpointSecurity;
-import org.wso2.carbon.apimgt.api.model.Identifier;
-import org.wso2.carbon.apimgt.api.model.KeyManager;
-import org.wso2.carbon.apimgt.api.model.Label;
-import org.wso2.carbon.apimgt.api.model.LifeCycleEvent;
-import org.wso2.carbon.apimgt.api.model.Monetization;
-import org.wso2.carbon.apimgt.api.model.Provider;
-import org.wso2.carbon.apimgt.api.model.ResourceFile;
-import org.wso2.carbon.apimgt.api.model.ResourcePath;
-import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
-import org.wso2.carbon.apimgt.api.model.Subscriber;
-import org.wso2.carbon.apimgt.api.model.Tier;
-import org.wso2.carbon.apimgt.api.model.URITemplate;
-import org.wso2.carbon.apimgt.api.model.Usage;
+import org.wso2.carbon.apimgt.api.model.*;
 import org.wso2.carbon.apimgt.api.model.policy.APIPolicy;
 import org.wso2.carbon.apimgt.api.model.policy.ApplicationPolicy;
 import org.wso2.carbon.apimgt.api.model.policy.Condition;
@@ -5022,6 +4995,9 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         try {
             PrivilegedCarbonContext.startTenantFlow();
             PrivilegedCarbonContext.getThreadLocalCarbonContext().setTenantDomain(tenantDomain, true);
+            // When updating an API check whether the API has any resource that has been already used in
+            // some API Products. If so, throw an exception and stop updating the API
+            checkUpdateResourcesInProduct(api);
             OASParserUtil.saveAPIDefinition(api, jsonText, registry);
 
         } finally {
@@ -7724,6 +7700,25 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         }
 
         apiMgtDAO.addAPIProductResourceMappings(productResources, null);
+    }
+
+    // Check whether the API has any resource that has been already used in some API Products.
+    // If so, throw an exception to stop updating the API
+    public void checkUpdateResourcesInProduct(API api) throws APIManagementException {
+        // Get existing product mappings for the API
+        List<APIProductResource> productResources = apiMgtDAO.getProductMappingsForAPI(api);
+        // Get uri templates of new API
+        Set<URITemplate> uriTemplatesOfNewApi = api.getUriTemplates();
+
+        // For each product mapping, check whether any resource is missing in new updating API
+        // If so, throw an exception
+        for (APIProductResource productResource : productResources) {
+            URITemplate productUriTemplate = productResource.getUriTemplate();
+            if (!uriTemplatesOfNewApi.contains(productUriTemplate)) {
+                throw new APIManagementException("New API does not have some resources that have been already used " +
+                        "in some API Products");
+            }
+        }
     }
 
     /**

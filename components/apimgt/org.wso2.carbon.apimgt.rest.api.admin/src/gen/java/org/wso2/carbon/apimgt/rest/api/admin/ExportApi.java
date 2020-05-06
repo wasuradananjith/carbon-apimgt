@@ -47,6 +47,26 @@ public class ExportApi  {
     return delegate.exportApiGet(name,version,format,providerName,preserveStatus);
     }
     @GET
+    @Path("/api-product")
+    @Consumes({ "application/json" })
+    @Produces({ "application/zip" })
+    @io.swagger.annotations.ApiOperation(value = "Export an API Product", notes = "This operation can be used to export the details of a particular API Product as a zip file.\n", response = File.class)
+    @io.swagger.annotations.ApiResponses(value = { 
+        @io.swagger.annotations.ApiResponse(code = 200, message = "OK.\nExport Successful.\n"),
+        
+        @io.swagger.annotations.ApiResponse(code = 404, message = "Not Found.\nRequested API does not exist.\n"),
+        
+        @io.swagger.annotations.ApiResponse(code = 500, message = "Internal Server Error.\nError in exporting API Product.\n") })
+
+    public Response exportApiProductGet(@ApiParam(value = "API Product Name\n",required=true) @QueryParam("name")  String name,
+    @ApiParam(value = "Version of the API Product\n",required=true) @QueryParam("version")  String version,
+    @ApiParam(value = "Format of output documents. Can be YAML or JSON.\n",required=true, allowableValues="{values=[JSON, YAML]}") @QueryParam("format")  String format,
+    @ApiParam(value = "Provider name of the API Product\n") @QueryParam("providerName")  String providerName,
+    @ApiParam(value = "Preserve API Product Status on export\n") @QueryParam("preserveStatus")  Boolean preserveStatus)
+    {
+    return delegate.exportApiProductGet(name,version,format,providerName,preserveStatus);
+    }
+    @GET
     @Path("/applications")
     @Consumes({ "application/json" })
     @Produces({ "application/json", "application/zip" })

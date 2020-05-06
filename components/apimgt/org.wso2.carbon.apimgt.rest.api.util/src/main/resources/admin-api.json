@@ -2250,6 +2250,89 @@
         }
       }
     },
+    "/export/api-product": {
+      "get": {
+        "x-scope": "apim:api_import_export",
+        "produces": [
+          "application/zip"
+        ],
+        "x-wso2-curl": "curl -k -H \"Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\" -X GET https://localhost:9443/api/am/admin/v0.16/export/api-product?name=SampleAPIProduct&version=1.0.0&providerName=admin > exportAPIProduct.zip",
+        "x-wso2-request": "GET https://localhost:9443/api/am/admin/v0.16/export/api-product?name=SampleAPIProduct&version=1.0.0&providerName=admin\nAuthorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\n",
+        "x-wso2-response": "HTTP/1.1 200 OK\n Connection: keep-alive\n  Content-Disposition: attachment; filename=\"exported-api-product.zip\"\n  Content-Type: application/zip",
+        "summary": "Export an API Product",
+        "description": "This operation can be used to export the details of a particular API Product as a zip file.\n",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "API Product Name\n",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "description": "Version of the API Product\n",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "providerName",
+            "in": "query",
+            "description": "Provider name of the API Product\n",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Format of output documents. Can be YAML or JSON.\n",
+            "type": "string",
+            "enum": [
+              "JSON",
+              "YAML"
+            ],
+            "required": true
+          },
+          {
+            "name": "preserveStatus",
+            "in": "query",
+            "description": "Preserve API Product Status on export\n",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "API Product (Individual)"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK.\nExport Successful.\n",
+            "headers": {
+              "Content-Type": {
+                "description": "The content type of the body.\n",
+                "type": "string"
+              }
+            },
+            "schema": {
+              "type": "file"
+            }
+          },
+          "404": {
+            "description": "Not Found.\nRequested API does not exist.\n",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error.\nError in exporting API Product.\n",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
     "/labels": {
       "get": {
         "x-scope": "apim:label_read",

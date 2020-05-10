@@ -38,19 +38,7 @@ import org.wso2.carbon.apimgt.api.APIMgtResourceAlreadyExistsException;
 import org.wso2.carbon.apimgt.api.APIMgtResourceNotFoundException;
 import org.wso2.carbon.apimgt.api.BlockConditionNotFoundException;
 import org.wso2.carbon.apimgt.api.PolicyNotFoundException;
-import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.api.model.APIIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIKey;
-import org.wso2.carbon.apimgt.api.model.Application;
-import org.wso2.carbon.apimgt.api.model.Documentation;
-import org.wso2.carbon.apimgt.api.model.DocumentationType;
-import org.wso2.carbon.apimgt.api.model.Identifier;
-import org.wso2.carbon.apimgt.api.model.Mediation;
-import org.wso2.carbon.apimgt.api.model.ResourceFile;
-import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
-import org.wso2.carbon.apimgt.api.model.Subscriber;
-import org.wso2.carbon.apimgt.api.model.Tier;
-import org.wso2.carbon.apimgt.api.model.Wsdl;
+import org.wso2.carbon.apimgt.api.model.*;
 import org.wso2.carbon.apimgt.api.model.policy.APIPolicy;
 import org.wso2.carbon.apimgt.api.model.policy.ApplicationPolicy;
 import org.wso2.carbon.apimgt.api.model.policy.GlobalPolicy;
@@ -492,6 +480,24 @@ public class AbstractAPIManagerTestCase {
             Assert.assertTrue(e.getMessage().contains("Failed to check availability of api"));
         }
         Assert.assertTrue(abstractAPIManager.isAPIAvailable(apiIdentifier));
+    }
+
+    @Test
+    public void testIsAPIProductAvailable() throws RegistryException, APIManagementException {
+        APIProductIdentifier apiProductIdentifier = getAPIProductIdentifier(SAMPLE_API_NAME, API_PROVIDER, SAMPLE_API_VERSION);
+        String path =
+                APIConstants.API_ROOT_LOCATION + RegistryConstants.PATH_SEPARATOR + apiProductIdentifier.getProviderName()
+                        + RegistryConstants.PATH_SEPARATOR + apiProductIdentifier.getName()
+                        + RegistryConstants.PATH_SEPARATOR + apiProductIdentifier.getVersion();
+        Mockito.when(registry.resourceExists(path)).thenThrow(RegistryException.class).thenReturn(true);
+        AbstractAPIManager abstractAPIManager = new AbstractAPIManagerWrapper(registry);
+        try {
+            abstractAPIManager.isAPIProductAvailable(apiProductIdentifier);
+            Assert.fail("Exception not thrown for error scenario");
+        } catch (APIManagementException e) {
+            Assert.assertTrue(e.getMessage().contains("Failed to check availability of API Product"));
+        }
+        Assert.assertTrue(abstractAPIManager.isAPIProductAvailable(apiProductIdentifier));
     }
 
     @Test
@@ -1980,5 +1986,9 @@ public class AbstractAPIManagerTestCase {
 
     private APIIdentifier getAPIIdentifier(String apiName, String provider, String version) {
         return new APIIdentifier(provider, apiName, version);
+    }
+
+    private APIProductIdentifier getAPIProductIdentifier(String apiProductName, String provider, String version) {
+        return new APIProductIdentifier(provider, apiProductName, version);
     }
 }

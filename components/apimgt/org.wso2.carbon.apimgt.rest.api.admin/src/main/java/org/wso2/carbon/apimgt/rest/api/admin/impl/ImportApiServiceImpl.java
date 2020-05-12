@@ -118,6 +118,59 @@ public class ImportApiServiceImpl extends ImportApiService {
     }
 
     /**
+     * Import an API Product by uploading an archive file. All relevant API Product data will be included upon the creation of
+     * the API Product. Depending on the choice of the user, provider of the imported API Product will be preserved or modified.
+     *
+     * @param fileInputStream       UploadedInputStream input stream from the REST request
+     * @param fileDetail            File details as Attachment
+     * @param preserveProvider      User choice to keep or replace the API Product provider
+     * @param overwriteAPIProduct   Whether to update the API Product or not. This is used when updating already existing API Products.
+     * @param overwriteAPIs         Whether to update the dependent APIs or not. This is used when updating already existing dependent APIs of an API Product.
+     * @return API Product import response
+     */
+    @Override
+    public Response importApiProductPost(InputStream fileInputStream, Attachment fileDetail, Boolean preserveProvider,
+                                         Boolean overwriteAPIProduct, Boolean overwriteAPIs) {
+
+        //Check whether to update the API Product. If not specified, default value is false.
+        if (overwriteAPIProduct == null) {
+            overwriteAPIProduct = false;
+        }
+
+        //Check whether to update the dependent APIs. If not specified, default value is false.
+        if (overwriteAPIs == null) {
+            overwriteAPIs = false;
+        }
+
+        //Check if the URL parameter value is specified, otherwise the default value is true.
+        if (preserveProvider == null) {
+            preserveProvider = true;
+        }
+
+        try {
+            APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
+            String userName = RestApiUtil.getLoggedInUsername();
+            APIImportExportManager apiImportExportManager = new APIImportExportManager(apiProvider, userName);
+            apiImportExportManager.importAPIProductArchive(fileInputStream, preserveProvider, overwriteAPIProduct, overwriteAPIs);
+            return Response.status(Response.Status.OK).entity("API Product imported successfully.").build();
+        } catch (APIImportExportException | APIManagementException e) {
+            if (RestApiUtil.isDueToResourceAlreadyExists(e)) {
+                String errorMessage = "Error occurred while importing. Duplicate API Product already exists.";
+                RestApiUtil.handleResourceAlreadyExistsError(errorMessage, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                //Auth failure occurs when cross tenant accessing APIs with preserve provider true.
+                String errorMessage = "Not Authorized to import cross tenant API Products with preserveProvider true.";
+                RestApiUtil.handleAuthorizationFailure(errorMessage, e, log);
+            } else if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError("Requested " + RestApiConstants.RESOURCE_API
+                        + " not found", e, log);
+            }
+            RestApiUtil.handleInternalServerError("Error while importing API Product", e, log);
+        }
+        return null;
+    }
+
+    /**
      * Import an Application which has been exported to a zip file
      *
      * @param appOwner            target owner of the application

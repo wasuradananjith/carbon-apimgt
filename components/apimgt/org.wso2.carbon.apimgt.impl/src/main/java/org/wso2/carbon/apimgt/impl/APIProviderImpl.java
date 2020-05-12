@@ -57,34 +57,7 @@ import org.wso2.carbon.apimgt.api.dto.CertificateInformationDTO;
 import org.wso2.carbon.apimgt.api.dto.CertificateMetadataDTO;
 import org.wso2.carbon.apimgt.api.dto.ClientCertificateDTO;
 import org.wso2.carbon.apimgt.api.dto.UserApplicationAPIUsage;
-import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.api.model.APICategory;
-import org.wso2.carbon.apimgt.api.model.APIIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIProduct;
-import org.wso2.carbon.apimgt.api.model.APIProductIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIProductResource;
-import org.wso2.carbon.apimgt.api.model.APIStateChangeResponse;
-import org.wso2.carbon.apimgt.api.model.APIStatus;
-import org.wso2.carbon.apimgt.api.model.APIStore;
-import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
-import org.wso2.carbon.apimgt.api.model.BlockConditionsDTO;
-import org.wso2.carbon.apimgt.api.model.CORSConfiguration;
-import org.wso2.carbon.apimgt.api.model.Documentation;
-import org.wso2.carbon.apimgt.api.model.DuplicateAPIException;
-import org.wso2.carbon.apimgt.api.model.EndpointSecurity;
-import org.wso2.carbon.apimgt.api.model.Identifier;
-import org.wso2.carbon.apimgt.api.model.KeyManager;
-import org.wso2.carbon.apimgt.api.model.Label;
-import org.wso2.carbon.apimgt.api.model.LifeCycleEvent;
-import org.wso2.carbon.apimgt.api.model.Monetization;
-import org.wso2.carbon.apimgt.api.model.Provider;
-import org.wso2.carbon.apimgt.api.model.ResourceFile;
-import org.wso2.carbon.apimgt.api.model.ResourcePath;
-import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
-import org.wso2.carbon.apimgt.api.model.Subscriber;
-import org.wso2.carbon.apimgt.api.model.Tier;
-import org.wso2.carbon.apimgt.api.model.URITemplate;
-import org.wso2.carbon.apimgt.api.model.Usage;
+import org.wso2.carbon.apimgt.api.model.*;
 import org.wso2.carbon.apimgt.api.model.policy.APIPolicy;
 import org.wso2.carbon.apimgt.api.model.policy.ApplicationPolicy;
 import org.wso2.carbon.apimgt.api.model.policy.Condition;
@@ -100,6 +73,7 @@ import org.wso2.carbon.apimgt.impl.certificatemgt.ResponseCode;
 import org.wso2.carbon.apimgt.impl.clients.RegistryCacheInvalidationClient;
 import org.wso2.carbon.apimgt.impl.clients.TierCacheInvalidationClient;
 import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
+import org.wso2.carbon.apimgt.impl.definitions.OAS3Parser;
 import org.wso2.carbon.apimgt.impl.definitions.OASParserUtil;
 import org.wso2.carbon.apimgt.impl.definitions.GraphQLSchemaDefinition;
 import org.wso2.carbon.apimgt.impl.dto.Environment;
@@ -5110,6 +5084,36 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         }
     }
 
+    @Override
+    public void addAPIProductSwagger(Map<API, List<APIProductResource>> apiToProductResourceMapping, APIProduct apiProduct)
+            throws APIManagementException {
+        APIDefinition parser = new OAS3Parser();
+        SwaggerData swaggerData = new SwaggerData(apiProduct);
+        String apiProductSwagger = parser.generateAPIDefinition(swaggerData);
+
+        apiProductSwagger = OASParserUtil.updateAPIProductSwaggerOperations(apiToProductResourceMapping, apiProductSwagger);
+
+        saveSwagger20Definition(apiProduct.getId(), apiProductSwagger);
+        apiProduct.setDefinition(apiProductSwagger);
+    }
+
+    @Override
+    public void updateAPIProductSwagger(Map<API, List<APIProductResource>> apiToProductResourceMapping, APIProduct apiProduct)
+            throws APIManagementException, FaultGatewaysException {
+        APIDefinition parser = new OAS3Parser();
+        SwaggerData updatedData = new SwaggerData(apiProduct);
+        String existingProductSwagger = getAPIDefinitionOfAPIProduct(apiProduct);
+        String updatedProductSwagger = parser.generateAPIDefinition(updatedData, existingProductSwagger);
+
+        updatedProductSwagger = OASParserUtil.updateAPIProductSwaggerOperations(apiToProductResourceMapping,
+                updatedProductSwagger);
+
+        saveSwagger20Definition(apiProduct.getId(), updatedProductSwagger);
+        apiProduct.setDefinition(updatedProductSwagger);
+
+        updateLocalEntry(apiProduct);
+    }
+
     public APIStateChangeResponse changeLifeCycleStatus(APIIdentifier apiIdentifier, String action)
             throws APIManagementException, FaultGatewaysException {
         APIStateChangeResponse response = new APIStateChangeResponse();
@@ -7147,15 +7151,24 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
 
         List<APIProductResource> resources = product.getProductResources();
 
-        // list to hold resouces which are actually in an existing api. If user has created an API product with invalid
+        // list to hold resources which are actually in an existing api. If user has created an API product with invalid
         // API or invalid resource of a valid API, that content will be removed .validResources array will have only
         // legitimate apis
         List<APIProductResource> validResources = new ArrayList<APIProductResource>();
         for (APIProductResource apiProductResource : resources) {
             API api = null;
             try {
-                api = super.getAPIbyUUID(apiProductResource.getApiId(), tenantDomain);
-                // if API does not exist, getLightweightAPIByUUID() method throws exception.
+                APIProductIdentifier productIdentifier = apiProductResource.getProductIdentifier();
+                if (productIdentifier != null) {
+                    APIIdentifier productAPIIdentifier = apiProductResource.getApiIdentifier();
+                    String emailReplacedAPIProviderName = APIUtil.replaceEmailDomain(productAPIIdentifier.getProviderName());
+                    APIIdentifier emailReplacedAPIIdentifier = new APIIdentifier(emailReplacedAPIProviderName,
+                            productAPIIdentifier.getApiName(), productAPIIdentifier.getVersion());
+                    api = super.getAPI(emailReplacedAPIIdentifier);
+                } else {
+                    api = super.getAPIbyUUID(apiProductResource.getApiId(), tenantDomain);
+                    // if API does not exist, getLightweightAPIByUUID() method throws exception.
+                }
             } catch (APIMgtResourceNotFoundException e) {
                 //If there is no API , this exception is thrown. We create the product without this invalid api.
                 log.warn("API does not exist for the given apiId: " + apiProductResource.getApiId());

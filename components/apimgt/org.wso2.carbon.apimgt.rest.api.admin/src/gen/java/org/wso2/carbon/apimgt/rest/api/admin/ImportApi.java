@@ -52,6 +52,30 @@ public class ImportApi  {
     return delegate.importApiPost(fileInputStream,fileDetail,preserveProvider,overwrite);
     }
     @POST
+    @Path("/api-product")
+    @Consumes({ "multipart/form-data" })
+    @Produces({ "application/json" })
+    @io.swagger.annotations.ApiOperation(value = "Import an API Product", notes = "This operation can be used to import an API Product.\n", response = void.class)
+    @io.swagger.annotations.ApiResponses(value = { 
+        @io.swagger.annotations.ApiResponse(code = 200, message = "Created.\nAPI Product Imported Successfully.\n"),
+        
+        @io.swagger.annotations.ApiResponse(code = 403, message = "Forbidden\nNot Authorized to import.\n"),
+        
+        @io.swagger.annotations.ApiResponse(code = 404, message = "Not Found.\nRequested API Product to update not found.\n"),
+        
+        @io.swagger.annotations.ApiResponse(code = 409, message = "Conflict.\nAPI Product to import already exists.\n"),
+        
+        @io.swagger.annotations.ApiResponse(code = 500, message = "Internal Server Error.\nError in importing API Product.\n") })
+
+    public Response importApiProductPost(@ApiParam(value = "Zip archive consisting on exported API Product configuration\n") @Multipart(value = "file") InputStream fileInputStream,
+    @ApiParam(value = "Zip archive consisting on exported API Product configuration\n : details") @Multipart(value = "file" ) Attachment fileDetail,
+    @ApiParam(value = "Preserve Original Provider of the API Product. This is the user choice to keep or replace the API Product provider.\n") @QueryParam("preserveProvider")  Boolean preserveProvider,
+    @ApiParam(value = "Whether to update the API Product or not. This is used when updating already existing API Products.\n") @QueryParam("overwriteAPIProduct")  Boolean overwriteAPIProduct,
+    @ApiParam(value = "Whether to update the dependent APIs or not. This is used when updating already existing dependent APIs of an API Product.\n") @QueryParam("overwriteAPIs")  Boolean overwriteAPIs)
+    {
+    return delegate.importApiProductPost(fileInputStream,fileDetail,preserveProvider,overwriteAPIProduct,overwriteAPIs);
+    }
+    @POST
     @Path("/applications")
     @Consumes({ "multipart/form-data" })
     @Produces({ "application/json" })

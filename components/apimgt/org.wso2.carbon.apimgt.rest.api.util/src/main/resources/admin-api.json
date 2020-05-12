@@ -2250,6 +2250,81 @@
         }
       }
     },
+    "/import/api-product": {
+      "post": {
+        "x-scope": "apim:api_import_export",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "x-wso2-curl": "curl -k -F \"file=@exported.zip\" -X POST -H \"Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\" https://localhost:9443/api/am/admin/v0.16/import/api-product?preserveProvider=false&overwrite=false",
+        "x-wso2-request": "POST https://localhost:9443/api/am/admin/v0.16/import/api-product\nAuthorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8\n",
+        "x-wso2-response": "HTTP/1.1 200 OK\nAPI Product imported successfully.",
+        "summary": "Import an API Product",
+        "description": "This operation can be used to import an API Product.\n",
+        "parameters": [
+          {
+            "name": "file",
+            "in": "formData",
+            "description": "Zip archive consisting on exported API Product configuration\n",
+            "required": true,
+            "type": "file"
+          },
+          {
+            "name": "preserveProvider",
+            "in": "query",
+            "description": "Preserve Original Provider of the API Product. This is the user choice to keep or replace the API Product provider.\n",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "overwriteAPIProduct",
+            "in": "query",
+            "description": "Whether to update the API Product or not. This is used when updating already existing API Products.\n",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "overwriteAPIs",
+            "in": "query",
+            "description": "Whether to update the dependent APIs or not. This is used when updating already existing dependent APIs of an API Product.\n",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "API Product (Individual)"
+        ],
+        "responses": {
+          "200": {
+            "description": "Created.\nAPI Product Imported Successfully.\n"
+          },
+          "403": {
+            "description": "Forbidden\nNot Authorized to import.\n",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "404": {
+            "description": "Not Found.\nRequested API Product to update not found.\n",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "409": {
+            "description": "Conflict.\nAPI Product to import already exists.\n",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error.\nError in importing API Product.\n",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
     "/export/api-product": {
       "get": {
         "x-scope": "apim:api_import_export",

@@ -17,6 +17,7 @@ import javax.ws.rs.core.Response;
 
 public abstract class ImportApiService {
     public abstract Response importApiPost(InputStream fileInputStream,Attachment fileDetail,Boolean preserveProvider,Boolean overwrite);
+    public abstract Response importApiProductPost(InputStream fileInputStream,Attachment fileDetail,Boolean preserveProvider,Boolean overwriteAPIProduct,Boolean overwriteAPIs);
     public abstract Response importApplicationsPost(InputStream fileInputStream,Attachment fileDetail,Boolean preserveOwner,Boolean skipSubscriptions,String appOwner,Boolean skipApplicationKeys,Boolean update);
 }
 

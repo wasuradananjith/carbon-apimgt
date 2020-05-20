@@ -62,7 +62,7 @@ public class ExportApiServiceImpl implements ExportApiService {
     public Response exportApiGet(String name, String version, String format, String providerName,
                                  Boolean preserveStatus, MessageContext messageContext) {
         ExportApiUtil exportApi = new ExportApiUtil();
-        return exportApi.exportApiByParams(name, version, providerName, format, preserveStatus);
+        return exportApi.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus, RestApiConstants.RESOURCE_API);
     }
 
     /**
@@ -80,7 +80,8 @@ public class ExportApiServiceImpl implements ExportApiService {
     @Override
     public Response exportApiProductGet(String name, String version, String format, String providerName,
                                         Boolean preserveStatus, MessageContext messageContext) {
-        return null;
+        ExportApiUtil exportApi = new ExportApiUtil();
+        return exportApi.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus, RestApiConstants.RESOURCE_API_PRODUCT);
     }
 
     /**

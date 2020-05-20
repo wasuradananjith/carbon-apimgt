@@ -22,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.jaxrs.ext.MessageContext;
 import org.apache.cxf.jaxrs.ext.multipart.Attachment;
+import org.apache.cxf.phase.PhaseInterceptorChain;
 import org.wso2.carbon.apimgt.api.APIConsumer;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.APIProvider;
@@ -51,6 +52,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import javax.ws.rs.core.Response;
@@ -127,7 +129,64 @@ public class ImportApiServiceImpl implements ImportApiService {
      */
     @Override
     public Response importApiProductPost(InputStream fileInputStream, Attachment fileDetail, Boolean preserveProvider,
-                                         Boolean overwriteAPIProduct, Boolean overwriteAPIs, Boolean importAPIs, MessageContext messageContext) {
+                                         Boolean importAPIs, Boolean overwriteAPIProduct, Boolean overwriteAPIs, MessageContext messageContext) {
+        Boolean isImportAPIs;
+
+        // If importAPIs flag is not set, the default value will be set as false
+        if (importAPIs == null) {
+            importAPIs = false;
+        }
+
+        // Get the scopes associated with the token
+        String[] tokenScopes =
+                (String[]) PhaseInterceptorChain.getCurrentMessage().getExchange().get(RestApiConstants.USER_REST_API_SCOPES);
+        log.info(Arrays.toString(tokenScopes));
+        // Validate if the USER_REST_API_SCOPES is not set in WebAppAuthenticator when scopes are validated
+        if (tokenScopes == null) {
+            RestApiUtil.handleInternalServerError("Error occurred while importing the  API Product", log);
+            return null;
+        } else if (importAPIs && Arrays.asList(tokenScopes).contains(RestApiConstants.API_IMPORT_EXPORT_SCOPE)) {
+            // If the user need to import dependent APIs and the user has the required scope for that, allow the user to do it
+            isImportAPIs = true;
+        } else {
+            isImportAPIs = false;
+        }
+
+        // Check whether to update the API Product. If not specified, default value is false.
+        if (overwriteAPIProduct == null) {
+            overwriteAPIProduct = false;
+        }
+
+        // Check whether to update the dependent APIs. If not specified, default value is false.
+        if (overwriteAPIs == null) {
+            overwriteAPIs = false;
+        }
+
+        // Check if the URL parameter value is specified, otherwise the default value is true.
+        if (preserveProvider == null) {
+            preserveProvider = true;
+        }
+
+        try {
+            APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
+            String userName = RestApiUtil.getLoggedInUsername();
+            APIImportExportManager apiImportExportManager = new APIImportExportManager(apiProvider, userName);
+            apiImportExportManager.importAPIProductArchive(fileInputStream, preserveProvider, overwriteAPIProduct, overwriteAPIs, isImportAPIs);
+            return Response.status(Response.Status.OK).entity("API Product imported successfully.").build();
+        } catch (APIImportExportException | APIManagementException e) {
+            if (RestApiUtil.isDueToResourceAlreadyExists(e)) {
+                String errorMessage = "Error occurred while importing. Duplicate API Product already exists.";
+                RestApiUtil.handleResourceAlreadyExistsError(errorMessage, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                //Auth failure occurs when cross tenant accessing APIs with preserve provider true.
+                String errorMessage = "Not Authorized to import cross tenant API Products with preserveProvider true.";
+                RestApiUtil.handleAuthorizationFailure(errorMessage, e, log);
+            } else if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError("Requested " + RestApiConstants.RESOURCE_API
+                        + " not found", e, log);
+            }
+            RestApiUtil.handleInternalServerError("Error while importing API Product", e, log);
+        }
         return null;
     }
 

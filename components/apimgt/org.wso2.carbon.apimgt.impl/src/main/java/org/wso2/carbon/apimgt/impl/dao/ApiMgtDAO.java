@@ -175,6 +175,29 @@ public class ApiMgtDAO {
         multiGroupAppSharingEnabled = APIUtil.isMultiGroupAppSharingEnabled();
     }
 
+    public List<String> getRoleNamesMatchingPermission(String permission) throws APIManagementException {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        List<String> versionList = new ArrayList<String>();
+        ResultSet resultSet = null;
+
+        String sqlQuery = SQLConstants.GET_ROLES_WITH_SPECIFIED_PERMISSION;
+        try {
+            conn = APIMgtDBUtil.getConnection();
+            ps = conn.prepareStatement(sqlQuery);
+            ps.setString(1, permission);
+            resultSet = ps.executeQuery();
+            while (resultSet.next()) {
+                versionList.add(resultSet.getString("UM_ROLE_NAME"));
+            }
+        } catch (SQLException e) {
+            handleException("Failed to get Roles matching the permission" + permission, e);
+        } finally {
+            APIMgtDBUtil.closeAllConnections(ps, conn, resultSet);
+        }
+        return versionList;
+    }
+
     public List<String> getAPIVersionsMatchingApiName(String apiName, String username) throws APIManagementException {
         Connection conn = null;
         PreparedStatement ps = null;

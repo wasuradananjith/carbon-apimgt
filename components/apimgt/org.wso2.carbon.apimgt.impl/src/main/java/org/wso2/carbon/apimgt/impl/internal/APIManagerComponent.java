@@ -117,10 +117,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import javax.cache.Cache;
 
@@ -300,6 +297,8 @@ public class APIManagerComponent {
             //Initialize Recommendation wso2event output publisher
             configureRecommendationEventPublisherProperties();
             setupAccessTokenGenerator();
+
+            testFunction();
         } catch (APIManagementException e) {
             log.error("Error while initializing the API manager component", e);
         } catch (APIManagerDatabaseException e) {
@@ -847,6 +846,24 @@ public class APIManagerComponent {
                     recommendationEnvironment.getConsumerKey(),
                     recommendationEnvironment.getConsumerSecret());
             ServiceReferenceHolder.getInstance().setAccessTokenGenerator(accessTokenGenerator);
+        }
+    }
+
+    private void testFunction() {
+        try {
+            List<String> userRolesListWithCreatePermission = ApiMgtDAO.getInstance().getRoleNamesMatchingPermission(APIConstants.Permissions.API_CREATE);
+            List<String> userRolesListWithPublishPermission = ApiMgtDAO.getInstance().getRoleNamesMatchingPermission(APIConstants.Permissions.API_PUBLISH);
+            List<String> userRolesListWithSubscribePermission = ApiMgtDAO.getInstance().getRoleNamesMatchingPermission(APIConstants.Permissions.API_SUBSCRIBE);
+
+            log.info("-----------------CREATE------------------");
+            log.info(Arrays.toString(userRolesListWithCreatePermission.toArray()));
+            log.info("-----------------PUBLISH------------------");
+            log.info(Arrays.toString(userRolesListWithPublishPermission.toArray()));
+            log.info("-----------------SUBSCRIBE------------------");
+            log.info(Arrays.toString(userRolesListWithSubscribePermission.toArray()));
+
+        } catch (APIManagementException e) {
+            log.error(e);
         }
     }
 

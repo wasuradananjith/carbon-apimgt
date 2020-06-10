@@ -22,6 +22,20 @@ import org.wso2.carbon.apimgt.api.model.policy.PolicyConstants;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 
 public class SQLConstants {
+    public static final String GET_ROLES_WITH_SPECIFIED_PERMISSION =
+            " SELECT " +
+            "   UM_ROLE_NAME " +
+            " FROM " +
+            "   UM_ROLE_PERMISSION" +
+            " WHERE " +
+            "   UM_PERMISSION_ID =  "+
+            "      (SELECT " +
+            "          UM_ID " +
+            "       FROM "+
+            "          UM_PERMISSION " +
+            "       WHERE "+
+            "          UM_RESOURCE_ID = ?)";
+
     public static final String GET_API_FOR_CONTEXT_TEMPLATE_SQL =
             " SELECT " +
             "   API.API_NAME," +

@@ -46,6 +46,7 @@ import org.wso2.carbon.apimgt.impl.PasswordResolverFactory;
 import org.wso2.carbon.apimgt.impl.caching.CacheProvider;
 import org.wso2.carbon.apimgt.impl.certificatemgt.reloader.CertificateReLoaderUtil;
 import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
+import org.wso2.carbon.apimgt.impl.dao.SharedDAO;
 import org.wso2.carbon.apimgt.impl.dto.ThrottleProperties;
 import org.wso2.carbon.apimgt.impl.factory.SQLConstantManagerFactory;
 import org.wso2.carbon.apimgt.impl.handlers.UserPostSelfRegistrationHandler;
@@ -70,6 +71,7 @@ import org.wso2.carbon.apimgt.impl.recommendationmgt.AccessTokenGenerator;
 import org.wso2.carbon.apimgt.impl.recommendationmgt.RecommendationEnvironment;
 import org.wso2.carbon.apimgt.impl.utils.APIMgtDBUtil;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
+import org.wso2.carbon.apimgt.impl.utils.SharedDBUtil;
 import org.wso2.carbon.apimgt.impl.workflow.events.APIMgtWorkflowDataPublisher;
 import org.wso2.carbon.base.MultitenantConstants;
 import org.wso2.carbon.base.ServerConfiguration;
@@ -213,6 +215,7 @@ public class APIManagerComponent {
             AuthorizationUtils.addAuthorizeRoleListener(APIConstants.AM_PUBLISHER_LIFECYCLE_EXECUTION_ID, RegistryUtils.getAbsolutePath(RegistryContext.getBaseInstance(), APIUtil.getMountedPath(RegistryContext.getBaseInstance(), RegistryConstants.GOVERNANCE_REGISTRY_BASE_PATH) + APIConstants.API_LIFE_CYCLE_HISTORY), APIConstants.Permissions.API_PUBLISH, UserMgtConstants.EXECUTE_ACTION, null);
             setupImagePermissions();
             APIMgtDBUtil.initialize();
+            SharedDBUtil.initialize();
             configureEventPublisherProperties();
             configureNotificationEventPublisher();
             // Load initially available api contexts at the server startup. This Cache is only use by the products other than the api-manager
@@ -851,9 +854,9 @@ public class APIManagerComponent {
 
     private void testFunction() {
         try {
-            List<String> userRolesListWithCreatePermission = ApiMgtDAO.getInstance().getRoleNamesMatchingPermission(APIConstants.Permissions.API_CREATE);
-            List<String> userRolesListWithPublishPermission = ApiMgtDAO.getInstance().getRoleNamesMatchingPermission(APIConstants.Permissions.API_PUBLISH);
-            List<String> userRolesListWithSubscribePermission = ApiMgtDAO.getInstance().getRoleNamesMatchingPermission(APIConstants.Permissions.API_SUBSCRIBE);
+            List<String> userRolesListWithCreatePermission = SharedDAO.getInstance().getRoleNamesMatchingPermission(APIConstants.Permissions.API_CREATE);
+            List<String> userRolesListWithPublishPermission = SharedDAO.getInstance().getRoleNamesMatchingPermission(APIConstants.Permissions.API_PUBLISH);
+            List<String> userRolesListWithSubscribePermission = SharedDAO.getInstance().getRoleNamesMatchingPermission(APIConstants.Permissions.API_SUBSCRIBE);
 
             log.info("-----------------CREATE------------------");
             log.info(Arrays.toString(userRolesListWithCreatePermission.toArray()));

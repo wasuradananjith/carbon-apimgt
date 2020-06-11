@@ -23,18 +23,16 @@ import org.wso2.carbon.apimgt.impl.APIConstants;
 
 public class SQLConstants {
     public static final String GET_ROLES_WITH_SPECIFIED_PERMISSION =
-            " SELECT " +
-            "   UM_ROLE_NAME " +
-            " FROM " +
-            "   UM_ROLE_PERMISSION" +
-            " WHERE " +
-            "   UM_PERMISSION_ID =  "+
-            "      (SELECT " +
-            "          UM_ID " +
-            "       FROM "+
-            "          UM_PERMISSION " +
-            "       WHERE "+
-            "          UM_RESOURCE_ID = ?)";
+	   " SELECT " +
+       "   UM_ROLE_NAME " +
+       " FROM "+
+       "   UM_ROLE_PERMISSION " +
+       " INNER JOIN "+
+       "   UM_PERMISSION " +
+       " ON "+
+       "   UM_ROLE_PERMISSION.UM_PERMISSION_ID=UM_PERMISSION.UM_ID " +
+       " WHERE " +
+       "   UM_RESOURCE_ID = ?";
 
     public static final String GET_API_FOR_CONTEXT_TEMPLATE_SQL =
             " SELECT " +

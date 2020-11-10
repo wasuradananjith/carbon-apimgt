@@ -29,6 +29,7 @@ import com.amazonaws.services.lambda.model.FunctionConfiguration;
 import com.amazonaws.services.lambda.model.ListFunctionsResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import graphql.language.FieldDefinition;
 import graphql.language.ObjectTypeDefinition;
 import graphql.language.TypeDefinition;
@@ -45,6 +46,7 @@ import org.apache.commons.collections.MapUtils;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.HeadMethod;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -110,6 +112,9 @@ import org.wso2.carbon.apimgt.impl.definitions.GraphQLSchemaDefinition;
 import org.wso2.carbon.apimgt.impl.definitions.OAS2Parser;
 import org.wso2.carbon.apimgt.impl.definitions.OAS3Parser;
 import org.wso2.carbon.apimgt.impl.definitions.OASParserUtil;
+import org.wso2.carbon.apimgt.impl.importexport.APIImportExportConstants;
+import org.wso2.carbon.apimgt.impl.importexport.APIImportExportException;
+import org.wso2.carbon.apimgt.impl.importexport.utils.CommonUtil;
 import org.wso2.carbon.apimgt.impl.utils.APIMWSDLReader;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.impl.utils.APIVersionStringComparator;
@@ -4017,14 +4022,72 @@ public class ApisApiServiceImpl implements ApisApiService {
             throws APIManagementException {
         ExportApiUtil exportApiUtil = new ExportApiUtil();
         if (apiId == null) {
+            APIIdentifier apiIdentifier = new APIIdentifier(APIUtil.replaceEmailDomain(providerName), name, version);
+            APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
+            API api = apiProvider.getAPI(apiIdentifier);
+            APIDTO apidto = APIMappingUtil.fromAPItoDTO(api);
+            String exportAPIBasePath = null;
 
-            return exportApiUtil.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus,
-                    RestApiConstants.RESOURCE_API);
+            //create temp location for storing API data
+            try {
+                File exportFolder = CommonUtil.createTempDirectory(api.getId());
+                exportAPIBasePath = exportFolder.toString();
+
+                String archivePath = exportAPIBasePath.concat(File.separator + apiIdentifier.getApiName() + "-"
+                        + apiIdentifier.getVersion());
+                CommonUtil.createDirectory(archivePath);
+                CommonUtil.createDirectory(archivePath + File.separator + APIImportExportConstants.META_INFO_DIRECTORY);
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                String apiInJson = gson.toJson(apidto);
+                CommonUtil.writeFile(archivePath + APIImportExportConstants.YAML_API_FILE_LOCATION, apiInJson);
+                CommonUtil.archiveDirectory(exportAPIBasePath);
+
+            } catch (Exception e) {
+                RestApiUtil.handleInternalServerError("Error while exporting " + RestApiConstants.RESOURCE_API, e, log);
+            }
+            FileUtils.deleteQuietly(new File(exportAPIBasePath));
+            File file = new File(exportAPIBasePath + APIConstants.ZIP_FILE_EXTENSION);
+            return Response.ok(file)
+                    .header(RestApiConstants.HEADER_CONTENT_DISPOSITION, "attachment; filename=\""
+                            + file.getName() + "\"")
+                    .build();
+
+//            return exportApiUtil.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus,
+//                    RestApiConstants.RESOURCE_API);
         } else {
             try {
                 String tenantDomain = RestApiUtil.getLoggedInUserTenantDomain();
                 APIIdentifier apiIdentifier = APIMappingUtil.getAPIIdentifierFromUUID(apiId, tenantDomain);
-                return exportApiUtil.exportApiById(apiIdentifier, preserveStatus, format);
+                APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
+                API api = apiProvider.getAPI(apiIdentifier);
+                APIDTO apidto = APIMappingUtil.fromAPItoDTO(api);
+                String exportAPIBasePath = null;
+
+                //create temp location for storing API data
+                try {
+                    File exportFolder = CommonUtil.createTempDirectory(api.getId());
+                    exportAPIBasePath = exportFolder.toString();
+
+                    String archivePath = exportAPIBasePath.concat(File.separator + apiIdentifier.getApiName() + "-"
+                            + apiIdentifier.getVersion());
+                    CommonUtil.createDirectory(archivePath);
+                    CommonUtil.createDirectory(archivePath + File.separator + APIImportExportConstants.META_INFO_DIRECTORY);
+                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                    String apiInJson = gson.toJson(apidto);
+                    CommonUtil.writeFile(archivePath + APIImportExportConstants.YAML_API_FILE_LOCATION, apiInJson);
+                    CommonUtil.archiveDirectory(exportAPIBasePath);
+
+                } catch (Exception e) {
+                    RestApiUtil.handleInternalServerError("Error while exporting " + RestApiConstants.RESOURCE_API, e, log);
+                }
+                FileUtils.deleteQuietly(new File(exportAPIBasePath));
+                File file = new File(exportAPIBasePath + APIConstants.ZIP_FILE_EXTENSION);
+                return Response.ok(file)
+                        .header(RestApiConstants.HEADER_CONTENT_DISPOSITION, "attachment; filename=\""
+                                + file.getName() + "\"")
+                        .build();
+
+//                return exportApiUtil.exportApiById(apiIdentifier, preserveStatus, format);
             } catch (APIManagementException e) {
                 if (RestApiUtil.isDueToResourceNotFound(e) || RestApiUtil.isDueToAuthorizationFailure(e)) {
                     RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_API, apiId, e, log);

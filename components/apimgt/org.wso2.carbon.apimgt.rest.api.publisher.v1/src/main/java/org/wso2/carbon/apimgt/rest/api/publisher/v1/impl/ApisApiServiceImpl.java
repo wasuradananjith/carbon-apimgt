@@ -123,6 +123,7 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.ApisApi;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.ApisApiService;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.*;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.CertificateRestApiUtils;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.ExportApiUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.RestApiPublisherUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.APIMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.CertificateMappingUtil;
@@ -131,7 +132,6 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.ExternalStore
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.MediationMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.util.RestApiConstants;
 import org.wso2.carbon.apimgt.rest.api.util.dto.ErrorDTO;
-import org.wso2.carbon.apimgt.rest.api.util.impl.ExportApiUtil;
 import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
 import org.wso2.carbon.base.ServerConfiguration;
 import org.wso2.carbon.core.util.CryptoException;
@@ -4014,18 +4014,18 @@ public class ApisApiServiceImpl implements ApisApiService {
      */
     @Override
     public Response apisExportGet(String apiId, String name, String version, String providerName, String format,
-                                  Boolean preserveStatus, MessageContext messageContext)
-            throws APIManagementException {
-        ExportApiUtil exportApiUtil = new ExportApiUtil();
+                                  Boolean preserveStatus, MessageContext messageContext) {
+        ExportApiUtils exportApiUtils = new ExportApiUtils();
+        preserveStatus = preserveStatus == null || preserveStatus;
         if (apiId == null) {
 
-            return exportApiUtil.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus,
+            return exportApiUtils.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus,
                     RestApiConstants.RESOURCE_API);
         } else {
             try {
                 String tenantDomain = RestApiUtil.getLoggedInUserTenantDomain();
                 APIIdentifier apiIdentifier = APIMappingUtil.getAPIIdentifierFromUUID(apiId, tenantDomain);
-                return exportApiUtil.exportApiById(apiIdentifier, preserveStatus, format);
+                return exportApiUtils.exportApiById(apiIdentifier, preserveStatus, format);
             } catch (APIManagementException e) {
                 if (RestApiUtil.isDueToResourceNotFound(e) || RestApiUtil.isDueToAuthorizationFailure(e)) {
                     RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_API, apiId, e, log);

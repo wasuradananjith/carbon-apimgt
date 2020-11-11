@@ -3402,6 +3402,7 @@ paths:
         - OAuth2Security:
             - apim:api_publish
             - apim:api_create
+            - apim:api_import_export
       produces:
         - application/zip
       x-code-samples:

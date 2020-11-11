@@ -105,15 +105,15 @@ public final class APIImportExportConstants {
 
     public static final String ENDPOINT_CERTIFICATES_DIRECTORY = "Endpoint-certificates";
 
+    public static final String CLIENT_CERTIFICATES_DIRECTORY = "Client-certificates";
+
     public static final String YAML_ENDPOINTS_CERTIFICATE_FILE = File.separator + "endpoint_certificates.yaml";
 
     public static final String JSON_ENDPOINTS_CERTIFICATE_FILE = File.separator + "endpoint_certificates.json";
     
-    public static final String YAML_CLIENT_CERTIFICATE_FILE = File.separator
-            + APIImportExportConstants.META_INFO_DIRECTORY + File.separator + "client_certificates.yaml";
+    public static final String YAML_CLIENT_CERTIFICATE_FILE = File.separator + "client_certificates.yaml";
 
-    public static final String JSON_CLIENT_CERTIFICATE_FILE = File.separator
-            + APIImportExportConstants.META_INFO_DIRECTORY + File.separator + "client_certificates.json";
+    public static final String JSON_CLIENT_CERTIFICATE_FILE = File.separator + "client_certificates.json";
 
     public static final String APIS_DIRECTORY = "APIs";
     
@@ -142,6 +142,8 @@ public final class APIImportExportConstants {
     public static final String TYPE_DOCUMENTS = "documents";
 
     public static final String TYPE_ENDPOINT_CERTIFICATES = "endpoint_certificates";
+
+    public static final String TYPE_CLIENT_CERTIFICATES = "client_certificates";
 
     public static final String APIM_VERSION = "v4";
 }

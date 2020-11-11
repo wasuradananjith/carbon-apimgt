@@ -641,7 +641,7 @@ public class ExportApiUtils {
             uniqueEndpointURLs.addAll(sandboxEndpoints);
 
             for (String url : uniqueEndpointURLs) {
-                JsonArray certificateListOfUrl = getCertificateContentAndMetaData(tenantId, url, endpointCertsDirectoryPath);
+                JsonArray certificateListOfUrl = getEndpointCertificateContentAndMetaData(tenantId, url, endpointCertsDirectoryPath);
                 endpointCertificatesDetails.addAll(certificateListOfUrl);
             }
             if (endpointCertificatesDetails.size() > 0) {
@@ -810,15 +810,15 @@ public class ExportApiUtils {
     }
 
     /**
-     * Get Certificate MetaData and Certificate detail and build JSON list.
+     * Get Endpoint Certificate MetaData and Certificate detail and build JSON Array.
      *
      * @param tenantId          tenant id of the user
      * @param url               url of the endpoint
      * @param certDirectoryPath directory path to export the certificates
-     * @return list of certificate detail JSON objects
+     * @return JSON Array of certificate details
      * @throws APIImportExportException If an error occurs while retrieving endpoint certificate metadata and content
      */
-    private static JsonArray getCertificateContentAndMetaData(int tenantId, String url,
+    private static JsonArray getEndpointCertificateContentAndMetaData(int tenantId, String url,
                                                                             String certDirectoryPath)
             throws APIImportExportException {
 

@@ -26,6 +26,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
@@ -39,9 +40,12 @@ import org.w3c.dom.NodeList;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.APIProvider;
 import org.wso2.carbon.apimgt.api.FaultGatewaysException;
+import org.wso2.carbon.apimgt.api.dto.CertificateMetadataDTO;
 import org.wso2.carbon.apimgt.api.dto.ClientCertificateDTO;
 import org.wso2.carbon.apimgt.api.model.*;
 import org.wso2.carbon.apimgt.impl.APIConstants;
+import org.wso2.carbon.apimgt.impl.certificatemgt.CertificateManager;
+import org.wso2.carbon.apimgt.impl.certificatemgt.CertificateManagerImpl;
 import org.wso2.carbon.apimgt.impl.importexport.APIImportExportConstants;
 import org.wso2.carbon.apimgt.impl.importexport.APIImportExportException;
 import org.wso2.carbon.apimgt.impl.importexport.ExportFormat;
@@ -273,31 +277,37 @@ public class APIAndAPIProductCommonUtils {
     public static void exportClientCertificates(String archivePath, ApiTypeWrapper apiTypeWrapper, int tenantId, APIProvider provider,
                                                 ExportFormat exportFormat) throws APIImportExportException {
 
-        List<ClientCertificateDTO> certificateMetadataDTOS;
+        List<ClientCertificateDTO> certificateMetadataDTOs;
         try {
             if (apiTypeWrapper.isAPIProduct()) {
-                certificateMetadataDTOS = provider.searchClientCertificates(tenantId, null, apiTypeWrapper.getApiProduct().getId());
+                certificateMetadataDTOs = provider.searchClientCertificates(tenantId, null, apiTypeWrapper.getApiProduct().getId());
             } else {
-                certificateMetadataDTOS = provider.searchClientCertificates(tenantId, null, apiTypeWrapper.getApi().getId());
+                certificateMetadataDTOs = provider.searchClientCertificates(tenantId, null, apiTypeWrapper.getApi().getId());
             }
-            if (certificateMetadataDTOS.isEmpty()) {
+            if (certificateMetadataDTOs.isEmpty()) {
                 return;
             }
-            CommonUtil.createDirectory(archivePath + File.separator + APIImportExportConstants.META_INFO_DIRECTORY);
+            String clientCertsDirectoryPath = archivePath + File.separator
+                    + APIImportExportConstants.CLIENT_CERTIFICATES_DIRECTORY;
+            CommonUtil.createDirectory(clientCertsDirectoryPath);
 
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            String element = gson.toJson(certificateMetadataDTOS,
-                    new TypeToken<ArrayList<ClientCertificateDTO>>() {
-                    }.getType());
+            JsonArray certificateList = getClientCertificateContentAndMetaData(certificateMetadataDTOs, clientCertsDirectoryPath);
 
-            switch (exportFormat) {
-                case YAML:
-                    CommonUtil.writeFile(archivePath + APIImportExportConstants.YAML_CLIENT_CERTIFICATE_FILE,
-                            CommonUtil.jsonToYaml(element));
-                    break;
-                case JSON:
-                    CommonUtil.writeFile(archivePath + APIImportExportConstants.JSON_CLIENT_CERTIFICATE_FILE,
-                            element);
+            if (certificateList.size() > 0) {
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                JsonObject clientCertificatesJsonObject = APIAndAPIProductCommonUtils.addTypeAndVersionToFile(
+                        APIImportExportConstants.TYPE_CLIENT_CERTIFICATES, APIImportExportConstants.APIM_VERSION,
+                        gson.toJsonTree(certificateList));
+                String certificatesJson = gson.toJson(clientCertificatesJsonObject);
+                switch (exportFormat) {
+                    case YAML:
+                        CommonUtil.writeFile(clientCertsDirectoryPath + APIImportExportConstants.YAML_CLIENT_CERTIFICATE_FILE,
+                                CommonUtil.jsonToYaml(certificatesJson));
+                        break;
+                    case JSON:
+                        CommonUtil.writeFile(clientCertsDirectoryPath + APIImportExportConstants.JSON_CLIENT_CERTIFICATE_FILE,
+                                certificatesJson);
+                }
             }
         } catch (IOException e) {
             String errorMessage = "Error while retrieving saving as YAML";
@@ -734,5 +744,42 @@ public class APIAndAPIProductCommonUtils {
         jsonObject.addProperty(APIConstants.API_DATA_VERSION, version);
         jsonObject.add(APIConstants.DATA, jsonElement);
         return jsonObject;
+    }
+
+    /**
+     * Get Client Certificate MetaData and Certificate detail and build JSON list.
+     *
+     * @param clientCertificateDTOs client certificates list DTOs
+     * @param certDirectoryPath     directory path to export the certificates
+     * @return list of certificate detail JSON objects
+     */
+    private static JsonArray getClientCertificateContentAndMetaData(List<ClientCertificateDTO> clientCertificateDTOs,
+                                                                    String certDirectoryPath) {
+        CertificateManager certificateManager = CertificateManagerImpl.getInstance();
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        JsonArray certificatesList = new JsonArray();
+        clientCertificateDTOs.forEach(metadataDTO -> {
+            ByteArrayInputStream certificate = null;
+            try {
+                String certificateContent = metadataDTO.getCertificate();
+                String certificateContentEncoded = APIConstants.BEGIN_CERTIFICATE_STRING
+                        .concat(certificateContent).concat("\n")
+                        .concat(APIConstants.END_CERTIFICATE_STRING);
+                CommonUtil.writeFile(certDirectoryPath + File.separator + metadataDTO.getAlias() + ".crt",
+                        certificateContentEncoded);
+                // Add the file name to the Certificate Metadata
+                JsonObject modifiedCertificateMetadata = (JsonObject) gson.toJsonTree(metadataDTO);
+                modifiedCertificateMetadata.remove(APIImportExportConstants.CERTIFICATE_CONTENT_JSON_KEY);
+                modifiedCertificateMetadata.addProperty("file", metadataDTO.getAlias() + ".crt");
+                certificatesList.add(modifiedCertificateMetadata);
+            } catch (APIImportExportException e) {
+                log.error("Error while writing the certificate content. For alias: " + metadataDTO.getAlias(), e);
+            } finally {
+                if (certificate != null) {
+                    IOUtils.closeQuietly(certificate);
+                }
+            }
+        });
+        return certificatesList;
     }
 }

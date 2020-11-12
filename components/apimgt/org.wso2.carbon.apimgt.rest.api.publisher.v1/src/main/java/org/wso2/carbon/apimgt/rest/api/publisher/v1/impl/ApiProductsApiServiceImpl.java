@@ -40,6 +40,8 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIProductListDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.DocumentDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.FileInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.DocumentListDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.APIAndAPIProductCommonUtils;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.ExportApiUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.APIMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.RestApiPublisherUtils;
 
@@ -623,6 +625,14 @@ public class ApiProductsApiServiceImpl implements ApiProductsApiService {
             RestApiUtil.handleInternalServerError(errorMessage, e, log);
         }
         return null;
+    }
+
+    @Override
+    public Response apiProductsExportGet(String name, String version, String providerName, String format, Boolean preserveStatus, MessageContext messageContext) throws APIManagementException {
+        APIAndAPIProductCommonUtils apiAndAPIProductCommonUtils = new APIAndAPIProductCommonUtils();
+        preserveStatus = preserveStatus == null || preserveStatus;
+        return apiAndAPIProductCommonUtils.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus,
+                RestApiConstants.RESOURCE_API_PRODUCT);
     }
 
     @Override

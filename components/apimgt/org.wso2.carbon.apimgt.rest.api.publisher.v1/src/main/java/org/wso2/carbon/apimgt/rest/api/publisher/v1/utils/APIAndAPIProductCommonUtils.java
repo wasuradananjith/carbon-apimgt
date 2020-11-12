@@ -26,7 +26,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
@@ -40,7 +39,6 @@ import org.w3c.dom.NodeList;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.APIProvider;
 import org.wso2.carbon.apimgt.api.FaultGatewaysException;
-import org.wso2.carbon.apimgt.api.dto.CertificateMetadataDTO;
 import org.wso2.carbon.apimgt.api.dto.ClientCertificateDTO;
 import org.wso2.carbon.apimgt.api.model.*;
 import org.wso2.carbon.apimgt.impl.APIConstants;
@@ -55,13 +53,17 @@ import org.wso2.carbon.apimgt.impl.importexport.utils.CommonUtil;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.DocumentListDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.DocumentationMappingUtil;
+import org.wso2.carbon.apimgt.rest.api.util.RestApiConstants;
+import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
 import org.wso2.carbon.base.MultitenantConstants;
 import org.wso2.carbon.registry.api.Registry;
 import org.wso2.carbon.registry.api.RegistryException;
 import org.wso2.carbon.registry.api.Resource;
 import org.wso2.carbon.registry.core.RegistryConstants;
+import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 import org.xml.sax.SAXException;
 
+import javax.ws.rs.core.Response;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -78,7 +80,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -89,7 +90,96 @@ public class APIAndAPIProductCommonUtils {
 
     private static final Log log = LogFactory.getLog(APIAndAPIProductCommonUtils.class);
 
-    private APIAndAPIProductCommonUtils() {
+    /**
+     * Exports an API or an API Product from API Manager. Meta information, API icon, documentation, client certificates, WSDL
+     * and sequences are exported. This service generates a zipped archive which contains all the above mentioned
+     * resources for a given API.
+     *
+     * @param name           Name of the API that needs to be exported
+     * @param version        Version of the API that needs to be exported
+     * @param providerName   Provider name of the API that needs to be exported
+     * @param format         Format of output documents. Can be YAML or JSON
+     * @param preserveStatus Preserve API status on export
+     * @param type           Whether an API or an API Product
+     * @return Zipped file containing exported API
+     */
+    public Response exportApiOrApiProductByParams(String name, String version, String providerName, String format, Boolean preserveStatus, String type) {
+        ExportFormat exportFormat;
+        String userName;
+        APIProvider apiProvider;
+        String apiDomain;
+        String apiRequesterDomain;
+        File file;
+        //If not specified status is preserved by default
+        boolean isStatusPreserved = preserveStatus == null || preserveStatus;
+
+        if (name == null || version == null) {
+            RestApiUtil.handleBadRequest("'name' (" + name + ") or 'version' (" + version
+                    + ") should not be null.", log);
+        }
+
+        try {
+            //Default export format is YAML
+            exportFormat = StringUtils.isNotEmpty(format) ? ExportFormat.valueOf(format.toUpperCase()) :
+                    ExportFormat.YAML;
+
+            // Get currently logged in user's username and the domain
+            userName = RestApiUtil.getLoggedInUsername();
+            apiRequesterDomain = RestApiUtil.getLoggedInUserTenantDomain();
+
+            // If provider name is not given
+            if (StringUtils.isBlank(providerName)) {
+                // Retrieve the provider who is in same tenant domain and who owns the same API (by comparing
+                // API name and the version)
+                providerName = APIUtil.getAPIProviderFromAPINameVersionTenant(name, version, apiRequesterDomain);
+
+                // If there is no provider in current domain, the API cannot be exported
+                if (providerName == null) {
+                    String errorMessage = "Error occurred while exporting. API: " + name + " version: " + version
+                            + " not found";
+                    RestApiUtil.handleResourceNotFoundError(errorMessage, log);
+                }
+            }
+
+            //provider names with @ signs are only accepted
+            apiDomain = MultitenantUtils.getTenantDomain(providerName);
+
+            if (!StringUtils.equals(apiDomain, apiRequesterDomain)) {
+                //not authorized to export requested API
+                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_API +
+                        " name:" + name + " version:" + version + " provider:" + providerName, log);
+            }
+
+            apiProvider = RestApiUtil.getLoggedInUserProvider();
+            if (!StringUtils.equals(type, RestApiConstants.RESOURCE_API_PRODUCT)) {
+                APIIdentifier apiIdentifier = new APIIdentifier(APIUtil.replaceEmailDomain(providerName), name, version);
+                // Checking whether the API exists
+                if (!apiProvider.isAPIAvailable(apiIdentifier)) {
+                    String errorMessage = "Error occurred while exporting. API: " + name + " version: " + version
+                            + " not found";
+                    RestApiUtil.handleResourceNotFoundError(errorMessage, log);
+                }
+                file = ExportApiUtils.exportApi(apiProvider, apiIdentifier, userName, exportFormat, isStatusPreserved);
+            } else {
+                APIProductIdentifier apiProductIdentifier = new APIProductIdentifier(APIUtil.replaceEmailDomain(providerName),
+                        name, version);
+                // Checking whether the API Product exists
+                if (!apiProvider.isAPIProductAvailable(apiProductIdentifier)) {
+                    String errorMessage = "Error occurred while exporting. API Product: " + name + " version: " + version
+                            + " not found";
+                    RestApiUtil.handleResourceNotFoundError(errorMessage, log);
+                }
+                file = ExportAPIProductUtils.exportApiProduct(apiProvider, apiProductIdentifier, userName, exportFormat,
+                        isStatusPreserved);
+            }
+            return Response.ok(file)
+                    .header(RestApiConstants.HEADER_CONTENT_DISPOSITION, "attachment; filename=\""
+                            + file.getName() + "\"")
+                    .build();
+        } catch (APIManagementException | APIImportExportException e) {
+            RestApiUtil.handleInternalServerError("Error while exporting " + RestApiConstants.RESOURCE_API, e, log);
+        }
+        return null;
     }
 
     /**
@@ -659,26 +749,6 @@ public class APIAndAPIProductCommonUtils {
             String errorMessage = "Error while importing client certificate";
             throw new APIImportExportException(errorMessage, e);
         }
-    }
-
-    /**
-     * Get the subscription level policy names of an API/API Product
-     *
-     * @param apiTypeWrapper API or API Product to be exported
-     * @throws APIImportExportException
-     */
-    public static Set<String> getAvailableTierNames(ApiTypeWrapper apiTypeWrapper) {
-        Set<String> tiers = new LinkedHashSet<String>();
-        Set<Tier> tiersFromApi;
-        if (!apiTypeWrapper.isAPIProduct()) {
-            tiersFromApi = apiTypeWrapper.getApi().getAvailableTiers();
-        } else {
-            tiersFromApi = apiTypeWrapper.getApiProduct().getAvailableTiers();
-        }
-        for (Tier tier : tiersFromApi) {
-            tiers.add(tier.getName());
-        }
-        return tiers;
     }
 
     /**

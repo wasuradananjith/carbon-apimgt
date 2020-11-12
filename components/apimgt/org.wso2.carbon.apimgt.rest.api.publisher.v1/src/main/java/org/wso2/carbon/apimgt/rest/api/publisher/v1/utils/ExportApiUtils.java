@@ -41,7 +41,6 @@ import org.wso2.carbon.apimgt.api.APIProvider;
 import org.wso2.carbon.apimgt.api.dto.CertificateMetadataDTO;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.APIIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIProductIdentifier;
 import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
 import org.wso2.carbon.apimgt.api.model.Documentation;
 import org.wso2.carbon.apimgt.api.model.Scope;
@@ -54,7 +53,6 @@ import org.wso2.carbon.apimgt.impl.definitions.OASParserUtil;
 import org.wso2.carbon.apimgt.impl.importexport.APIImportExportConstants;
 import org.wso2.carbon.apimgt.impl.importexport.APIImportExportException;
 import org.wso2.carbon.apimgt.impl.importexport.ExportFormat;
-import org.wso2.carbon.apimgt.impl.importexport.utils.APIProductExportUtil;
 import org.wso2.carbon.apimgt.impl.importexport.utils.CommonUtil;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
@@ -111,103 +109,16 @@ public class ExportApiUtils {
         APIProvider apiProvider;
         String userName;
         File file;
-        try {
-            //Default export format is YAML
-            exportFormat = StringUtils.isNotEmpty(format) ? ExportFormat.valueOf(format.toUpperCase()) :
-                    ExportFormat.YAML;
-            apiProvider = RestApiUtil.getLoggedInUserProvider();
-            userName = RestApiUtil.getLoggedInUsername();
-            file = exportApi(apiProvider, apiIdentifier, userName, exportFormat, preserveStatus);
-            return Response.ok(file)
-                    .header(RestApiConstants.HEADER_CONTENT_DISPOSITION, "attachment; filename=\""
-                            + file.getName() + "\"")
-                    .build();
-        } catch (APIManagementException | APIImportExportException e) {
-            RestApiUtil.handleInternalServerError("Error while exporting " + RestApiConstants.RESOURCE_API, e, log);
-        }
-        return null;
-    }
-
-    /**
-     * Exports an API or an API Product from API Manager. Meta information, API icon, documentation, client certificates, WSDL
-     * and sequences are exported. This service generates a zipped archive which contains all the above mentioned
-     * resources for a given API.
-     *
-     * @param name           Name of the API that needs to be exported
-     * @param version        Version of the API that needs to be exported
-     * @param providerName   Provider name of the API that needs to be exported
-     * @param format         Format of output documents. Can be YAML or JSON
-     * @param preserveStatus Preserve API status on export
-     * @param type           Whether an API or an API Product
-     * @return Zipped file containing exported API
-     */
-    public Response exportApiOrApiProductByParams(String name, String version, String providerName, String format, Boolean preserveStatus, String type) {
-        ExportFormat exportFormat;
-        String userName;
-        APIProvider apiProvider;
-        String apiDomain;
-        String apiRequesterDomain;
-        File file;
         //If not specified status is preserved by default
         boolean isStatusPreserved = preserveStatus == null || preserveStatus;
 
-        if (name == null || version == null) {
-            RestApiUtil.handleBadRequest("'name' (" + name + ") or 'version' (" + version
-                    + ") should not be null.", log);
-        }
-
         try {
             //Default export format is YAML
             exportFormat = StringUtils.isNotEmpty(format) ? ExportFormat.valueOf(format.toUpperCase()) :
                     ExportFormat.YAML;
-
-            // Get currently logged in user's username and the domain
-            userName = RestApiUtil.getLoggedInUsername();
-            apiRequesterDomain = RestApiUtil.getLoggedInUserTenantDomain();
-
-            // If provider name is not given
-            if (StringUtils.isBlank(providerName)) {
-                // Retrieve the provider who is in same tenant domain and who owns the same API (by comparing
-                // API name and the version)
-                providerName = APIUtil.getAPIProviderFromAPINameVersionTenant(name, version, apiRequesterDomain);
-
-                // If there is no provider in current domain, the API cannot be exported
-                if (providerName == null) {
-                    String errorMessage = "Error occurred while exporting. API: " + name + " version: " + version
-                            + " not found";
-                    RestApiUtil.handleResourceNotFoundError(errorMessage, log);
-                }
-            }
-
-            //provider names with @ signs are only accepted
-            apiDomain = MultitenantUtils.getTenantDomain(providerName);
-
-            if (!StringUtils.equals(apiDomain, apiRequesterDomain)) {
-                //not authorized to export requested API
-                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_API +
-                        " name:" + name + " version:" + version + " provider:" + providerName, log);
-            }
-
             apiProvider = RestApiUtil.getLoggedInUserProvider();
-            if (!StringUtils.equals(type, RestApiConstants.RESOURCE_API_PRODUCT)) {
-                APIIdentifier apiIdentifier = new APIIdentifier(APIUtil.replaceEmailDomain(providerName), name, version);
-                // Checking whether the API exists
-                if (!apiProvider.isAPIAvailable(apiIdentifier)) {
-                    String errorMessage = "Error occurred while exporting. API: " + name + " version: " + version
-                            + " not found";
-                    RestApiUtil.handleResourceNotFoundError(errorMessage, log);
-                }
-                file = exportApi(apiProvider, apiIdentifier, userName, exportFormat, preserveStatus);
-            } else {
-                APIProductIdentifier apiProductIdentifier = new APIProductIdentifier(APIUtil.replaceEmailDomain(providerName), name, version);
-                // Checking whether the API exists
-                if (!apiProvider.isAPIProductAvailable(apiProductIdentifier)) {
-                    String errorMessage = "Error occurred while exporting. API Product: " + name + " version: " + version
-                            + " not found";
-                    RestApiUtil.handleResourceNotFoundError(errorMessage, log);
-                }
-                file = APIProductExportUtil.exportApiProduct(apiProvider, apiProductIdentifier, userName, exportFormat, preserveStatus);
-            }
+            userName = RestApiUtil.getLoggedInUsername();
+            file = exportApi(apiProvider, apiIdentifier, userName, exportFormat, isStatusPreserved);
             return Response.ok(file)
                     .header(RestApiConstants.HEADER_CONTENT_DISPOSITION, "attachment; filename=\""
                             + file.getName() + "\"")
@@ -228,6 +139,7 @@ public class ExportApiUtils {
      * @param exportFormat      Export format of the API meta data, could be yaml or json
      * @param isStatusPreserved Whether API status is preserved while export
      * @throws APIImportExportException If an error occurs while retrieving API related resources
+     * @throws APIManagementException   If an error occurs while retrieving the API
      */
     public static File exportApi(APIProvider apiProvider, APIIdentifier apiIDToReturn, String userName,
                                  ExportFormat exportFormat, boolean isStatusPreserved)
@@ -279,7 +191,7 @@ public class ExportApiUtils {
             exportEndpointCertificates(archivePath, apiToReturn, tenantId, exportFormat);
 
             //export meta information
-            exportAPIMetaInformation(archivePath, apiToReturn, registry, exportFormat, apiProvider);
+            exportAPIMetaInformation(archivePath, apiToReturn, exportFormat, apiProvider);
 
             //export mTLS authentication related certificates
             if (apiProvider.isClientCertificateBasedAuthenticationConfigured()) {
@@ -719,13 +631,12 @@ public class ExportApiUtils {
      * data are in api.json
      *
      * @param apiToReturn  API to be exported
-     * @param registry     Current tenant registry
      * @param exportFormat Export format of file
      * @param apiProvider  API Provider
      * @throws APIImportExportException If an error occurs while exporting meta information
      */
-    private static void exportAPIMetaInformation(String archivePath, API apiToReturn, Registry registry,
-                                                 ExportFormat exportFormat, APIProvider apiProvider)
+    private static void exportAPIMetaInformation(String archivePath, API apiToReturn, ExportFormat exportFormat,
+                                                 APIProvider apiProvider)
             throws APIImportExportException, APIManagementException {
 
         CommonUtil.createDirectory(archivePath + File.separator + APIImportExportConstants.META_INFO_DIRECTORY);

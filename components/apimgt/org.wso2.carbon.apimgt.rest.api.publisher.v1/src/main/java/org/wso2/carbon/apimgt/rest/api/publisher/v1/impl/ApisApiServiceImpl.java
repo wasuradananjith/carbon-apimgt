@@ -122,6 +122,7 @@ import org.wso2.carbon.apimgt.impl.wsdl.util.SequenceUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.ApisApi;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.ApisApiService;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.*;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.APIAndAPIProductCommonUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.CertificateRestApiUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.ExportApiUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.RestApiPublisherUtils;
@@ -4016,10 +4017,10 @@ public class ApisApiServiceImpl implements ApisApiService {
     public Response apisExportGet(String apiId, String name, String version, String providerName, String format,
                                   Boolean preserveStatus, MessageContext messageContext) {
         ExportApiUtils exportApiUtils = new ExportApiUtils();
-        preserveStatus = preserveStatus == null || preserveStatus;
+        APIAndAPIProductCommonUtils apiAndAPIProductCommonUtils = new APIAndAPIProductCommonUtils();
         if (apiId == null) {
 
-            return exportApiUtils.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus,
+            return apiAndAPIProductCommonUtils.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus,
                     RestApiConstants.RESOURCE_API);
         } else {
             try {

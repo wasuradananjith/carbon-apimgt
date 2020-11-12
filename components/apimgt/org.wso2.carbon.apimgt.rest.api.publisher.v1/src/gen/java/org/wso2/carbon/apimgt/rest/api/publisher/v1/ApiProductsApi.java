@@ -297,6 +297,23 @@ ApiProductsApiService delegate = new ApiProductsApiServiceImpl();
     }
 
     @GET
+    @Path("/export")
+    @Consumes({ "application/json" })
+    @Produces({ "application/zip" })
+    @ApiOperation(value = "Export an API Product", notes = "This operation can be used to export the details of a particular API Product as a zip file. ", response = File.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:api_product_import_export", description = "Import and export API Products related operations")
+        })
+    }, tags={ "Import Export",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Export Successful. ", response = File.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
+        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
+    public Response apiProductsExportGet( @NotNull @ApiParam(value = "API Product Name ",required=true)  @QueryParam("name") String name,  @NotNull @ApiParam(value = "Version of the API Product ",required=true)  @QueryParam("version") String version,  @ApiParam(value = "Provider name of the API Product ")  @QueryParam("providerName") String providerName,  @ApiParam(value = "Format of output documents. Can be YAML or JSON. ", allowableValues="JSON, YAML")  @QueryParam("format") String format,  @ApiParam(value = "Preserve API Product Status on export ")  @QueryParam("preserveStatus") Boolean preserveStatus) throws APIManagementException{
+        return delegate.apiProductsExportGet(name, version, providerName, format, preserveStatus, securityContext);
+    }
+
+    @GET
     
     @Consumes({ "application/json" })
     @Produces({ "application/json" })

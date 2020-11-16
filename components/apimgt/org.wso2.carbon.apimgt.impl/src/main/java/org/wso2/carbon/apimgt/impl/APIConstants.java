@@ -650,6 +650,8 @@ public final class APIConstants {
         }
     }
 
+    public static final String DEVOPS_ROLE = "Internal/devops";
+
     public static final String API_GATEWAY = "APIGateway.";
     public static final String API_GATEWAY_SERVER_URL = "ServerURL";
     public static final String API_GATEWAY_USERNAME = "Username";

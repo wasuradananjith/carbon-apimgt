@@ -759,7 +759,8 @@ public class ExportApiUtils {
                         certificateContentEncoded);
                 // Add the file name to the Certificate Metadata
                 JsonObject modifiedCertificateMetadata = (JsonObject) gson.toJsonTree(metadataDTO);
-                modifiedCertificateMetadata.addProperty("file", metadataDTO.getAlias() + ".crt");
+                modifiedCertificateMetadata.addProperty(APIImportExportConstants.CERTIFICATE_FILE,
+                        metadataDTO.getAlias() + ".crt");
                 certificatesList.add(modifiedCertificateMetadata);
             } catch (APIManagementException e) {
                 log.error("Error retrieving certificate content. For tenantId: " + tenantId + " hostname: "

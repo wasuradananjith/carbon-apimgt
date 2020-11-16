@@ -49,8 +49,11 @@ import org.wso2.carbon.apimgt.impl.importexport.APIImportExportException;
 import org.wso2.carbon.apimgt.impl.importexport.ExportFormat;
 import org.wso2.carbon.apimgt.impl.importexport.lifecycle.LifeCycle;
 import org.wso2.carbon.apimgt.impl.importexport.lifecycle.LifeCycleTransition;
+import org.wso2.carbon.apimgt.impl.importexport.utils.APIImportUtil;
+import org.wso2.carbon.apimgt.impl.importexport.utils.APIProductImportUtil;
 import org.wso2.carbon.apimgt.impl.importexport.utils.CommonUtil;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.DocumentDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.DocumentListDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.DocumentationMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.util.RestApiConstants;
@@ -103,7 +106,8 @@ public class APIAndAPIProductCommonUtils {
      * @param type           Whether an API or an API Product
      * @return Zipped file containing exported API
      */
-    public Response exportApiOrApiProductByParams(String name, String version, String providerName, String format, Boolean preserveStatus, String type) {
+    public Response exportApiOrApiProductByParams(String name, String version, String providerName, String format,
+                                                  Boolean preserveStatus, String type) {
         ExportFormat exportFormat;
         String userName;
         APIProvider apiProvider;
@@ -613,7 +617,7 @@ public class APIAndAPIProductCommonUtils {
         String pathToYamlFile = pathToArchive + APIImportExportConstants.YAML_DOCUMENT_FILE_LOCATION;
         String pathToJsonFile = pathToArchive + APIImportExportConstants.JSON_DOCUMENT_FILE_LOCATION;
         Identifier identifier = apiTypeWrapper.getId();
-        Documentation[] documentations;
+        DocumentDTO[] documentations;
         String docDirectoryPath = pathToArchive + File.separator + APIImportExportConstants.DOCUMENT_DIRECTORY;
         try {
             //remove all documents associated with the API before update
@@ -644,24 +648,26 @@ public class APIAndAPIProductCommonUtils {
                 }
                 return;
             }
+            // Retrieving the field "data" in docs.yaml/json and convert it to a JSON object for further processing
+            JsonElement configElement = new JsonParser().parse(jsonContent).getAsJsonObject().get(APIConstants.DATA);
+            documentations = new Gson().fromJson(configElement.getAsJsonObject().get("list"), DocumentDTO[].class);
 
-            documentations = new Gson().fromJson(jsonContent, Documentation[].class);
-            //For each type of document separate action is performed
-            for (Documentation doc : documentations) {
-
-                String docSourceType = doc.getSourceType().toString();
+            for (DocumentDTO documentDTO: documentations) {
+                RestApiPublisherUtils.validateDocumentTypeAndSourceURL(documentDTO);
+                Documentation documentation = DocumentationMappingUtil.fromDTOtoDocumentation(documentDTO);
+                String docSourceType = documentation.getSourceType().toString();
                 boolean docContentExists = Documentation.DocumentSourceType.INLINE.toString().equalsIgnoreCase(docSourceType)
                         || Documentation.DocumentSourceType.MARKDOWN.toString().equalsIgnoreCase(docSourceType);
                 String inlineContent = null;
 
                 if (docContentExists) {
                     try (FileInputStream inputStream = new FileInputStream(docDirectoryPath + File.separator
-                            + APIImportExportConstants.INLINE_DOCUMENT_DIRECTORY + File.separator + doc.getName())) {
-
+                            + APIImportExportConstants.INLINE_DOCUMENT_DIRECTORY + File.separator +
+                            documentation.getName())) {
                         inlineContent = IOUtils.toString(inputStream, APIImportExportConstants.CHARSET);
                     }
                 } else if (APIImportExportConstants.FILE_DOC_TYPE.equalsIgnoreCase(docSourceType)) {
-                    String filePath = doc.getFilePath();
+                    String filePath = documentation.getFilePath();
                     try (FileInputStream inputStream = new FileInputStream(docDirectoryPath + File.separator
                             + APIImportExportConstants.FILE_DOCUMENT_DIRECTORY + File.separator + filePath)) {
                         String docExtension = FilenameUtils.getExtension(pathToArchive + File.separator
@@ -675,23 +681,22 @@ public class APIAndAPIProductCommonUtils {
                         String filePathDoc = APIUtil.getDocumentationFilePath(identifier, filePath);
                         APIUtil.setResourcePermissions(apiTypeWrapper.getId().getProviderName(),
                                 apiTypeWrapper.getVisibility(), visibleRoles, filePathDoc);
-                        doc.setFilePath(apiProvider.addResourceFile(apiTypeWrapper.getId(), filePathDoc, apiDocument));
+                        documentation.setFilePath(apiProvider.addResourceFile(apiTypeWrapper.getId(), filePathDoc,
+                                apiDocument));
                     } catch (FileNotFoundException e) {
                         //this error is logged and ignored because documents are optional in an API
-                        log.error("Failed to locate the document files of the API/API Product: " + apiTypeWrapper.getId().getName(), e);
+                        log.error("Failed to locate the document files of the API/API Product: " +
+                                apiTypeWrapper.getId().getName(), e);
                         continue;
                     }
                 }
-
-                //Add documentation accordingly.
-                apiProvider.addDocumentation(identifier, doc);
-
+                apiProvider.addDocumentation(identifier, documentation);
                 if (docContentExists) {
                     //APIProvider.addDocumentationContent method handles both create/update documentation content
                     if (!apiTypeWrapper.isAPIProduct()) {
-                        apiProvider.addDocumentationContent(apiTypeWrapper.getApi(), doc.getName(), inlineContent);
+                        apiProvider.addDocumentationContent(apiTypeWrapper.getApi(), documentation.getName(), inlineContent);
                     } else {
-                        apiProvider.addProductDocumentationContent(apiTypeWrapper.getApiProduct(), doc.getName(), inlineContent);
+                        apiProvider.addProductDocumentationContent(apiTypeWrapper.getApiProduct(), documentation.getName(), inlineContent);
                     }
                 }
             }
@@ -713,8 +718,12 @@ public class APIAndAPIProductCommonUtils {
     public static void addClientCertificates(String pathToArchive, APIProvider apiProvider)
             throws APIImportExportException {
         String jsonContent = null;
-        String pathToYamlFile = pathToArchive + APIImportExportConstants.YAML_CLIENT_CERTIFICATE_FILE;
-        String pathToJsonFile = pathToArchive + APIImportExportConstants.JSON_CLIENT_CERTIFICATE_FILE;
+        String pathToClientCertificatesDirectory = pathToArchive + File.separator +
+                APIImportExportConstants.CLIENT_CERTIFICATES_DIRECTORY;
+        String pathToYamlFile = pathToClientCertificatesDirectory +
+                APIImportExportConstants.YAML_CLIENT_CERTIFICATE_FILE;
+        String pathToJsonFile = pathToClientCertificatesDirectory +
+                APIImportExportConstants.JSON_CLIENT_CERTIFICATE_FILE;
 
         try {
             // try loading file as YAML
@@ -731,8 +740,12 @@ public class APIAndAPIProductCommonUtils {
                 log.debug("No client certificate file found to be added, skipping");
                 return;
             }
+            JsonElement configElement = new JsonParser().parse(jsonContent).getAsJsonObject().get(APIConstants.DATA);
+            JsonArray modifiedCertificatesData = addFileContentToCertificates(configElement.getAsJsonArray(),
+                    pathToClientCertificatesDirectory);
+
             Gson gson = new Gson();
-            List<ClientCertificateDTO> certificateMetadataDTOS = gson.fromJson(jsonContent,
+            List<ClientCertificateDTO> certificateMetadataDTOS = gson.fromJson(modifiedCertificatesData,
                     new TypeToken<ArrayList<ClientCertificateDTO>>() {
                     }.getType());
             for (ClientCertificateDTO certDTO : certificateMetadataDTOS) {
@@ -749,6 +762,47 @@ public class APIAndAPIProductCommonUtils {
             String errorMessage = "Error while importing client certificate";
             throw new APIImportExportException(errorMessage, e);
         }
+    }
+
+    public static JsonArray addFileContentToCertificates(JsonArray certificates,
+                                                         String pathToCertificatesDirectory) throws IOException {
+        JsonArray modifiedCertificates = new JsonArray();
+        for (JsonElement certificate : certificates) {
+            JsonObject certificateObject = certificate.getAsJsonObject();
+            String certificateFileName = certificateObject.get(APIImportExportConstants.CERTIFICATE_FILE).getAsString();
+            // Get the content of the certificate file from the relevant certificate file inside the Client-certificates
+            // directory and add it to the cer
+            String certificateContent = getFileContentOfCertificate(certificateFileName, pathToCertificatesDirectory);
+            certificateObject.addProperty(APIImportExportConstants.CERTIFICATE_CONTENT_JSON_KEY, certificateContent);
+            modifiedCertificates.add(certificateObject);
+        }
+        return modifiedCertificates;
+    }
+
+    /**
+     * Get the file content of a certificate in the Client-certificate directory.
+     *
+     * @param certificateFileName         certificate file name
+     * @param pathToCertificatesDirectory Path to client certificates directory
+     * @return content of the certificate
+     */
+    private static String getFileContentOfCertificate(String certificateFileName,
+                                                      String pathToCertificatesDirectory) throws IOException {
+        String certificateContent = null;
+        File certificatesDirectory = new File(pathToCertificatesDirectory);
+        File[] certificatesDirectoryListing = certificatesDirectory.listFiles();
+        // Iterate the Endpoints certificates directory to get the relevant cert file
+        if (certificatesDirectoryListing != null) {
+            for (File endpointsCertificate : certificatesDirectoryListing) {
+                if (StringUtils.equals(certificateFileName, endpointsCertificate.getName())) {
+                    certificateContent = FileUtils.readFileToString(new File(pathToCertificatesDirectory +
+                            File.separator + certificateFileName));
+                    certificateContent = certificateContent.replace(APIConstants.BEGIN_CERTIFICATE_STRING,"");
+                    certificateContent = certificateContent.replace(APIConstants.END_CERTIFICATE_STRING,"");
+                }
+            }
+        }
+        return certificateContent;
     }
 
     /**
@@ -851,5 +905,38 @@ public class APIAndAPIProductCommonUtils {
             }
         });
         return certificatesList;
+    }
+
+    /**
+     * This method is used to import the given API/API Product archive file. Importing an API/API Product as a new
+     * API/API Product and overwriting an existing API/API Product both are supported. In both cases,
+     * the state of the API/API Product will be preserved.
+     *
+     * @param uploadedInputStream Input stream for importing API archive file
+     * @param isProviderPreserved Is API Provider preserved or not
+     * @param overwrite           Whether to overwrite an existing API (update API)
+     * @throws APIImportExportException If an error occurs while importing the API
+     */
+    public static void importAPIOrAPIProductArchive(InputStream uploadedInputStream, Boolean isProviderPreserved,
+                                             Boolean overwrite, String type)
+            throws APIImportExportException, APIManagementException {
+        //Temporary directory is used to create the required folders
+        File importFolder = CommonUtil.createTempDirectory(null);
+        String uploadFileName = APIImportExportConstants.UPLOAD_FILE_NAME;
+        String absolutePath = importFolder.getAbsolutePath() + File.separator;
+        CommonUtil.transferFile(uploadedInputStream, uploadFileName, absolutePath);
+        APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
+        String extractedFolderName = CommonUtil.extractArchive(new File(absolutePath + uploadFileName), absolutePath);
+        String userName = RestApiUtil.getLoggedInUsername();
+
+        if (!StringUtils.equals(type, RestApiConstants.RESOURCE_API_PRODUCT)) {
+            ImportAPIUtils.importAPI(absolutePath + extractedFolderName, userName, isProviderPreserved,
+                    apiProvider, overwrite);
+        } else {
+//            ImportAPI.importAPIProduct(absolutePath + extractedFolderName, userName,
+//                    isProviderPreserved, apiProvider, overwrite);
+        }
+        FileUtils.deleteQuietly(importFolder);
+        FileUtils.deleteQuietly(new File(extractedFolderName));
     }
 }

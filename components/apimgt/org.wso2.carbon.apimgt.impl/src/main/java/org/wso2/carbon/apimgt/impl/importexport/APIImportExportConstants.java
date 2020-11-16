@@ -42,9 +42,9 @@ public final class APIImportExportConstants {
     //name of the id element tag of the api.json file
     public static final String ID_ELEMENT = "id";
     //name of the api provider element tag of the api.json file
-    public static final String PROVIDER_ELEMENT = "providerName";
+    public static final String PROVIDER_ELEMENT = "provider";
     //name of the api name element tag of the api.json file
-    public static final String API_NAME_ELEMENT = "apiName";
+    public static final String API_NAME_ELEMENT = "name";
     //name of the api version element tag of the api.json file
     public static final String VERSION_ELEMENT = "version";
 
@@ -119,9 +119,13 @@ public final class APIImportExportConstants {
     
     public static final String HOSTNAME_JSON_KEY = "hostName";
 
+    public static final String ENDPOINT_JSON_KEY = "endpoint";
+
     public static final String ALIAS_JSON_KEY = "alias";
 
     public static final String CERTIFICATE_CONTENT_JSON_KEY = "certificate";
+
+    public static final String CERTIFICATE_FILE = "file";
 
     public static final String NODE_TRANSITION = "transition";
 

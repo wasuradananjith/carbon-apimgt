@@ -3471,6 +3471,59 @@ paths:
           $ref: '#/responses/InternalServerError'
 
   ######################################################
+  # Import Resource API
+  ######################################################
+  /apis/import:
+
+    post:
+      security:
+        - OAuth2Security:
+            - apim:api_import_export
+      consumes:
+        - multipart/form-data
+      x-code-samples:
+        - lang: Shell
+          source: |-
+            curl -k -X POST -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8" -F file=@admin-PizzaShackAPI-1.0.0.zip "https://127.0.0.1:9443/api/am/admin/v1/import/api?preserveProvider=false&overwrite=false"
+      summary: Import an API
+      description: |
+        This operation can be used to import an API.
+      parameters:
+        - name: file
+          in: formData
+          description: |
+            Zip archive consisting on exported api configuration
+          required: true
+          type: file
+        - name: preserveProvider
+          in: query
+          description: |
+            Preserve Original Provider of the API. This is the user choice to keep or replace the API provider.
+          required: false
+          type: boolean
+        - name: overwrite
+          in: query
+          description: |
+            Whether to update the API or not. This is used when updating already existing APIs.
+          required: false
+          type: boolean
+      tags:
+        - API (Individual)
+      responses:
+        200:
+          description: |
+            Created.
+            API Imported Successfully.
+        403:
+          $ref: '#/responses/Forbidden'
+        404:
+          $ref: '#/responses/NotFound'
+        409:
+          $ref: '#/responses/Conflict'
+        500:
+          $ref: '#/responses/InternalServerError'
+
+  ######################################################
   # The "Subscription Collection" resource APIs
   ######################################################
   /subscriptions:

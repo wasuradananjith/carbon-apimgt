@@ -936,6 +936,7 @@ public class APIAndAPIProductCommonUtils {
 //            ImportAPI.importAPIProduct(absolutePath + extractedFolderName, userName,
 //                    isProviderPreserved, apiProvider, overwrite);
         }
+
         FileUtils.deleteQuietly(importFolder);
         FileUtils.deleteQuietly(new File(extractedFolderName));
     }

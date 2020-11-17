@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 
 @Scope(name = "apim:api_create", description="", value ="")
+@Scope(name = "apim:api_import_export", description="", value ="")
 public class APIDTO   {
   
     private String id = null;

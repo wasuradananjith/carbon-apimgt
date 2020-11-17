@@ -39,7 +39,11 @@ import org.wso2.carbon.apimgt.impl.wsdl.WSDLProcessor;
 import org.wso2.carbon.apimgt.impl.wsdl.model.WSDLValidationResponse;
 import org.wso2.carbon.apimgt.impl.wsdl.util.SOAPToRESTConstants;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIOperationsDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.GraphQLValidationResponseDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.impl.ApisApiServiceImpl;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.APIMappingUtil;
+import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
 import org.wso2.carbon.registry.api.RegistryException;
 import org.wso2.carbon.registry.core.Registry;
 import org.wso2.carbon.registry.core.RegistryConstants;
@@ -54,6 +58,9 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.*;
+import java.sql.Timestamp;
+import java.util.List;
+import java.util.Set;
 
 /**
  * This class provides the functions utilized to import an API from an API archive.
@@ -122,7 +129,7 @@ public final class ImportAPIUtils {
         APIDTO importedApiDTO = null;
         API importedApi = null;
         String swaggerContent;
-        API targetApi; //target API when overwrite is
+        API targetApi = null; //target API when overwrite is
         ApiTypeWrapper apiTypeWrapper;
         String prevProvider;
         String apiName;
@@ -177,7 +184,9 @@ public final class ImportAPIUtils {
                             + "for cross tenant API Import.";
                     throw new APIMgtAuthorizationFailedException(errorMessage);
                 }
-                importedApi = RestApiPublisherUtils.prepareToCreateAPIByDTO(importedApiDTO);
+                importedApi = Boolean.FALSE.equals(overwrite)?
+                        RestApiPublisherUtils.prepareToCreateAPIByDTO(importedApiDTO):
+                        APIMappingUtil.fromDTOtoAPI(importedApiDTO, currentUser);
             } else {
                 String prevProviderWithDomain = APIUtil.replaceEmailDomain(prevProvider);
                 String currentUserWithDomain = APIUtil.replaceEmailDomain(currentUser);
@@ -191,11 +200,43 @@ public final class ImportAPIUtils {
                                     .replace(prevProviderWithDomain, currentUserWithDomain));
                 }
 
-                importedApi = RestApiPublisherUtils.prepareToCreateAPIByDTO(importedApiDTO);
+                importedApi = Boolean.FALSE.equals(overwrite)?
+                        RestApiPublisherUtils.prepareToCreateAPIByDTO(importedApiDTO):
+                        APIMappingUtil.fromDTOtoAPI(importedApiDTO, currentUserWithDomain);
                 //Replace context to match with current provider
                 apiTypeWrapper = new ApiTypeWrapper(importedApi);
                 APIAndAPIProductCommonUtils.setCurrentProviderToAPIProperties(apiTypeWrapper, currentTenantDomain,
                         prevTenantDomain);
+            }
+
+            // ------------ Only for update ----------------
+            // If the overwrite is set to true (which means an update), retrieve the existing API
+            if (Boolean.TRUE.equals(overwrite)) {
+                String provider = APIUtil.getAPIProviderFromAPINameVersionTenant(apiName, apiVersion,
+                        currentTenantDomain);
+                APIIdentifier apiIdentifier = new APIIdentifier(APIUtil.replaceEmailDomain(provider), apiName,
+                        apiVersion);
+
+                // Checking whether the API exists
+                if (!apiProvider.isAPIAvailable(apiIdentifier)) {
+                    String errorMessage = "Error occurred while updating. API: " + apiName + StringUtils.SPACE
+                            + APIConstants.API_DATA_VERSION + ": " + apiVersion + " not found";
+                    throw new APIMgtResourceNotFoundException(errorMessage);
+                }
+
+                targetApi = apiProvider.getAPI(apiIdentifier);
+
+                // Since the overwrite should be done, the imported API Identifier should be equal to the target
+                // API Identifier
+                importedApi.setId(targetApi.getId());
+
+                // Validate and change the lifecycle
+                currentStatus = targetApi.getStatus();
+                targetStatus = importedApi.getStatus();
+                if (!StringUtils.equals(currentStatus, targetStatus)) {
+                    importedApi = changeLifeCycle(currentStatus, targetStatus, currentTenantDomain, apiProvider,
+                            importedApi);
+                }
             }
 
             String apiType = importedApi.getType();
@@ -234,6 +275,14 @@ public final class ImportAPIUtils {
                                 + graphQLValidationResponseDTO.getErrorMessage();
                         throw new APIImportExportException(errMsg);
                     } else {
+                        // Old and new GraphQL operations should be merged before updating
+                        if (Boolean.TRUE.equals(overwrite)) {
+                            List<APIOperationsDTO> operationListWithOldData =
+                                    APIMappingUtil.getOperationListWithOldData(targetApi.getUriTemplates(),
+                                            RestApiPublisherUtils.extractGraphQLOperationList(schemaDefinition));
+                            Set<URITemplate> uriTemplates = APIMappingUtil.getURITemplates(targetApi, operationListWithOldData);
+                            importedApi.setUriTemplates(uriTemplates);
+                        }
                         // Add the GraphQL schema definition to the registry
                         apiProvider.saveGraphqlSchemaDefinition(importedApi, schemaDefinition);
                     }
@@ -253,16 +302,26 @@ public final class ImportAPIUtils {
                     }
                 }
 
-                //Set extensions from API definition to API object
+                // Set extensions from API definition to API object
                 importedApi = OASParserUtil.setExtensionsToAPI(swaggerContent, importedApi);
 
-                // Sync the operations and add the swagger
-                importedApi =  RestApiPublisherUtils.syncOperationsAndAddSwaggerWithAPI(importedApiDTO,
-                        validationResponse, importedApi, apiProvider);
+                // If NOT updating a REST, SOAP, SOAPTOREST or a GraphQL API
+                if (Boolean.FALSE.equals(overwrite)) {
+                    // Sync the operations and add the swagger
+                    importedApi =  RestApiPublisherUtils.syncOperationsAndAddSwaggerWithAPI(importedApiDTO,
+                            validationResponse, importedApi, apiProvider);
+                } else {
+                    importedApi.setCreatedTime(targetApi.getCreatedTime());
+                    importedApi.setLastUpdated(targetApi.getLastUpdated());
+                    RestApiPublisherUtils.updateAPI(targetApi, APIMappingUtil.fromAPItoDTO(importedApi), apiProvider);
+                    RestApiPublisherUtils.updateSwagger(targetApi.getUUID(), validationResponse);
+                }
             } else {
                 // WS API should be added explicitly without the swagger
                 if (Boolean.FALSE.equals(overwrite)) {
                     apiProvider.addAPI(importedApi);
+                } else {
+                    RestApiPublisherUtils.updateAPI(targetApi, APIMappingUtil.fromAPItoDTO(importedApi), apiProvider);
                 }
             }
             /////////////////////////////////
@@ -415,9 +474,9 @@ public final class ImportAPIUtils {
             //Error is logged and APIImportExportException is thrown because adding API and swagger are mandatory steps
             String errorMessage = "Error while reading API meta information from path: " + pathToArchive;
             throw new APIImportExportException(errorMessage, e);
-//        } catch (FaultGatewaysException e) {
-//            String errorMessage = "Error while updating API: " + importedApi.getId().getApiName();
-//            throw new APIImportExportException(errorMessage, e);
+        } catch (FaultGatewaysException e) {
+            String errorMessage = "Error while updating API: " + importedApi.getId().getApiName();
+            throw new APIImportExportException(errorMessage, e);
         } catch (RegistryException e) {
             String errorMessage = "Error while getting governance registry for tenant: " + tenantId;
             throw new APIImportExportException(errorMessage, e);
@@ -427,7 +486,7 @@ public final class ImportAPIUtils {
                 errorMessage += importedApi.getId().getApiName() + StringUtils.SPACE + APIConstants.API_DATA_VERSION
                         + ": " + importedApi.getId().getVersion();
             }
-            throw new APIImportExportException(errorMessage + " " + e.getMessage(), e);
+            throw new APIImportExportException(errorMessage + StringUtils.SPACE + e.getMessage(), e);
         }
     }
 
@@ -775,6 +834,32 @@ public final class ImportAPIUtils {
         } finally {
             IOUtils.closeQuietly(inputFlowStream);
         }
+    }
+
+    private static API changeLifeCycle(String currentStatus, String targetStatus, String currentTenantDomain,
+                                                APIProvider apiProvider, API api)
+            throws APIImportExportException, APIManagementException, FaultGatewaysException {
+        // Check whether targetStatus is reachable from current status, if not throw an exception
+        String lifecycleAction = APIAndAPIProductCommonUtils.getLifeCycleAction(currentTenantDomain,
+                currentStatus, targetStatus, apiProvider);
+        if (lifecycleAction == null) {
+            String errMsg = "Error occurred while importing the API. " + targetStatus + " is not reachable from "
+                    + currentStatus;
+            throw new APIImportExportException(errMsg);
+        } else {
+            // Change API lifecycle if state transition is required
+            if (StringUtils.isNotEmpty(lifecycleAction)) {
+                log.info("Changing lifecycle from " + currentStatus + " to " + targetStatus);
+                if (StringUtils.equals(lifecycleAction, APIConstants.LC_PUBLISH_LC_STATE)) {
+                    apiProvider.changeAPILCCheckListItems(api.getId(),
+                            APIImportExportConstants.REFER_REQUIRE_RE_SUBSCRIPTION_CHECK_ITEM, true);
+                }
+                apiProvider.changeLifeCycleStatus(api.getId(), lifecycleAction);
+                //Change the status of the imported API to targetStatus
+                api.setStatus(targetStatus);
+            }
+        }
+        return api;
     }
 }
 

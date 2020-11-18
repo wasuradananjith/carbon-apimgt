@@ -46,6 +46,7 @@ import org.apache.commons.httpclient.HostConfiguration;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.HeadMethod;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -79,29 +80,9 @@ import org.wso2.carbon.apimgt.api.MonetizationException;
 import org.wso2.carbon.apimgt.api.doc.model.APIResource;
 import org.wso2.carbon.apimgt.api.dto.CertificateInformationDTO;
 import org.wso2.carbon.apimgt.api.dto.ClientCertificateDTO;
+import org.wso2.carbon.apimgt.api.model.*;
 import org.wso2.carbon.apimgt.api.model.graphql.queryanalysis.GraphqlComplexityInfo;
 import org.wso2.carbon.apimgt.api.model.graphql.queryanalysis.GraphqlSchemaType;
-import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.api.model.APICategory;
-import org.wso2.carbon.apimgt.api.model.APIIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIProduct;
-import org.wso2.carbon.apimgt.api.model.APIProductIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIResourceMediationPolicy;
-import org.wso2.carbon.apimgt.api.model.APIStateChangeResponse;
-import org.wso2.carbon.apimgt.api.model.APIStore;
-import org.wso2.carbon.apimgt.api.model.Documentation;
-import org.wso2.carbon.apimgt.api.model.DuplicateAPIException;
-import org.wso2.carbon.apimgt.api.model.Label;
-import org.wso2.carbon.apimgt.api.model.LifeCycleEvent;
-import org.wso2.carbon.apimgt.api.model.Mediation;
-import org.wso2.carbon.apimgt.api.model.Monetization;
-import org.wso2.carbon.apimgt.api.model.ResourceFile;
-import org.wso2.carbon.apimgt.api.model.ResourcePath;
-import org.wso2.carbon.apimgt.api.model.Scope;
-import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
-import org.wso2.carbon.apimgt.api.model.SwaggerData;
-import org.wso2.carbon.apimgt.api.model.Tier;
-import org.wso2.carbon.apimgt.api.model.URITemplate;
 import org.wso2.carbon.apimgt.api.model.policy.APIPolicy;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.GZIPUtils;
@@ -111,6 +92,10 @@ import org.wso2.carbon.apimgt.impl.definitions.GraphQLSchemaDefinition;
 import org.wso2.carbon.apimgt.impl.definitions.OAS2Parser;
 import org.wso2.carbon.apimgt.impl.definitions.OAS3Parser;
 import org.wso2.carbon.apimgt.impl.definitions.OASParserUtil;
+import org.wso2.carbon.apimgt.impl.importexport.APIImportExportException;
+import org.wso2.carbon.apimgt.impl.importexport.ExportFormat;
+import org.wso2.carbon.apimgt.impl.importexport.utils.CommonUtil;
+import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.impl.utils.APIMWSDLReader;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.impl.utils.APIVersionStringComparator;
@@ -122,7 +107,9 @@ import org.wso2.carbon.apimgt.impl.wsdl.util.SequenceUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.ApisApi;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.ApisApiService;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.*;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.APIAndAPIProductCommonUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.CertificateRestApiUtils;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.ExportApiUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.RestApiPublisherUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.APIMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.CertificateMappingUtil;
@@ -136,8 +123,10 @@ import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
 import org.wso2.carbon.base.ServerConfiguration;
 import org.wso2.carbon.core.util.CryptoException;
 import org.wso2.carbon.core.util.CryptoUtil;
+import org.wso2.carbon.registry.api.RegistryException;
 import org.wso2.carbon.registry.api.Resource;
 import org.wso2.carbon.registry.core.RegistryConstants;
+import org.wso2.carbon.registry.core.session.UserRegistry;
 import org.wso2.carbon.utils.CarbonUtils;
 
 import java.io.BufferedReader;
@@ -170,6 +159,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.GraphqlQueryAnalysisMappingUtil;
+import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -3064,11 +3054,8 @@ public class ApisApiServiceImpl implements ApisApiService {
             APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
             String tenantDomain = RestApiUtil.getLoggedInUserTenantDomain();
             //this will fail if user does not have access to the API or the API does not exist
-            APIIdentifier apiIdentifier = APIMappingUtil.getAPIIdentifierFromUUID(apiId, tenantDomain);
-            String apiSwagger = apiProvider.getOpenAPIDefinition(apiIdentifier);
-            APIDefinition parser = OASParserUtil.getOASParser(apiSwagger);
             API api = apiProvider.getAPIbyUUID(apiId, tenantDomain);
-            String updatedDefinition = parser.getOASDefinitionForPublisher(api, apiSwagger);
+            String updatedDefinition = RestApiPublisherUtils.retrieveSwaggerDefinition(api, apiProvider);
             return Response.ok().entity(updatedDefinition).header("Content-Disposition",
                     "attachment; filename=\"" + "swagger.json" + "\"" ).build();
         } catch (APIManagementException e) {
@@ -4019,28 +4006,106 @@ public class ApisApiServiceImpl implements ApisApiService {
      */
     @Override
     public Response apisExportGet(String apiId, String name, String version, String providerName, String format,
-                                  Boolean preserveStatus, MessageContext messageContext)
-            throws APIManagementException {
-        ExportApiUtil exportApiUtil = new ExportApiUtil();
-        if (apiId == null) {
+                                  Boolean preserveStatus, MessageContext messageContext) throws APIManagementException {
+        APIIdentifier apiIdentifier;
+        int tenantId = 0;
+        APIDTO apiDtoToReturn;
+        // Default export format is YAML
+        ExportFormat exportFormat = StringUtils.isNotEmpty(format) ? ExportFormat.valueOf(format.toUpperCase()) :
+                ExportFormat.YAML;
 
-            return exportApiUtil.exportApiOrApiProductByParams(name, version, providerName, format, preserveStatus,
-                    RestApiConstants.RESOURCE_API);
-        } else {
-            try {
-                String tenantDomain = RestApiUtil.getLoggedInUserTenantDomain();
-                APIIdentifier apiIdentifier = APIMappingUtil.getAPIIdentifierFromUUID(apiId, tenantDomain);
-                return exportApiUtil.exportApiById(apiIdentifier, preserveStatus, format);
-            } catch (APIManagementException e) {
-                if (RestApiUtil.isDueToResourceNotFound(e) || RestApiUtil.isDueToAuthorizationFailure(e)) {
-                    RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_API, apiId, e, log);
-                } else if (isAuthorizationFailure(e)) {
-                    RestApiUtil.handleAuthorizationFailure(
-                            "Authorization failure while exporting the  API " + apiId, e, log);
-                } else {
-                    RestApiUtil.handleInternalServerError("Error while exporting the API " + apiId, e, log);
+        try {
+            APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
+            String userName = RestApiUtil.getLoggedInUsername();
+
+            // apiId == null means the path from the API Controller
+            if (apiId == null) {
+                if (name == null || version == null) {
+                    RestApiUtil.handleBadRequest("'name' (" + name + ") or 'version' (" + version
+                            + ") should not be null.", log);
                 }
+                String apiRequesterDomain = RestApiUtil.getLoggedInUserTenantDomain();
+
+                // If provider name is not given
+                if (StringUtils.isBlank(providerName)) {
+                    // Retrieve the provider who is in same tenant domain and who owns the same API (by comparing
+                    // API name and the version)
+                    providerName = APIUtil.getAPIProviderFromAPINameVersionTenant(name, version, apiRequesterDomain);
+
+                    // If there is no provider in current domain, the API cannot be exported
+                    if (providerName == null) {
+                        String errorMessage = "Error occurred while exporting. API: " + name + " version: " + version
+                                + " not found";
+                        RestApiUtil.handleResourceNotFoundError(errorMessage, log);
+                    }
+                }
+
+                if (!StringUtils.equals(MultitenantUtils.getTenantDomain(providerName), apiRequesterDomain)) {
+                    // Not authorized to export requested API
+                    RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_API +
+                            " name:" + name + " version:" + version + " provider:" + providerName, log);
+                }
+                apiIdentifier = new APIIdentifier(APIUtil.replaceEmailDomain(providerName), name, version);
+                apiDtoToReturn = APIMappingUtil.fromAPItoDTO(apiProvider.getAPI(apiIdentifier));
+            } else {
+                String tenantDomain = RestApiUtil.getLoggedInUserTenantDomain();
+                apiIdentifier = APIMappingUtil.getAPIIdentifierFromUUID(apiId, tenantDomain);
+                apiDtoToReturn = getAPIByID(apiId);
             }
+
+            // Create temp location for storing API data
+            File exportFolder = CommonUtil.createTempDirectory(apiIdentifier);
+            String exportAPIBasePath = exportFolder.toString();
+            String archivePath = exportAPIBasePath.concat(File.separator + apiIdentifier.getApiName() + "-"
+                    + apiIdentifier.getVersion());
+            tenantId = APIUtil.getTenantId(userName);
+            UserRegistry registry = ServiceReferenceHolder.getInstance().getRegistryService().
+                    getGovernanceSystemRegistry(tenantId);
+
+            CommonUtil.createDirectory(archivePath);
+
+            ExportApiUtils.exportAPIThumbnail(archivePath, apiIdentifier, registry);
+            ExportApiUtils.exportSOAPToRESTMediation(archivePath, apiIdentifier, registry);
+            ExportApiUtils.exportAPIDocumentation(archivePath, apiIdentifier, registry, exportFormat, apiProvider);
+
+            if (StringUtils.isNotEmpty(apiDtoToReturn.getWsdlUrl())) {
+                ExportApiUtils.exportWSDL(archivePath, apiIdentifier, registry);
+            } else if (log.isDebugEnabled()) {
+                log.debug("No WSDL URL found for API: " + apiIdentifier + ". Skipping WSDL export.");
+            }
+
+            ExportApiUtils.exportSequences(archivePath, APIMappingUtil.fromDTOtoAPI(apiDtoToReturn, userName), registry);
+
+            // Set API status to created if the status is not preserved
+            if (!preserveStatus) {
+                apiDtoToReturn.setLifeCycleStatus(APIConstants.CREATED);
+            }
+
+            ExportApiUtils.exportEndpointCertificates(archivePath, apiDtoToReturn, tenantId, exportFormat);
+            ExportApiUtils.exportAPIMetaInformation(archivePath, apiDtoToReturn, exportFormat, apiProvider,
+                    apiIdentifier, userName);
+
+            // Export mTLS authentication related certificates
+            if (apiProvider.isClientCertificateBasedAuthenticationConfigured()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Mutual SSL enabled. Exporting client certificates.");
+                }
+                ApiTypeWrapper apiTypeWrapper = new ApiTypeWrapper(APIMappingUtil.fromDTOtoAPI(apiDtoToReturn, userName));
+                APIAndAPIProductCommonUtils.exportClientCertificates(archivePath, apiTypeWrapper, tenantId, apiProvider,
+                        exportFormat);
+            }
+            CommonUtil.archiveDirectory(exportAPIBasePath);
+            FileUtils.deleteQuietly(new File(exportAPIBasePath));
+            File file = new File(exportAPIBasePath + APIConstants.ZIP_FILE_EXTENSION);
+            return Response.ok(file)
+                    .header(RestApiConstants.HEADER_CONTENT_DISPOSITION, "attachment; filename=\""
+                            + file.getName() + "\"")
+                    .build();
+        } catch (RegistryException e) {
+            String errorMessage = "Error while getting governance registry for tenant: " + tenantId;
+            throw new APIManagementException(errorMessage, e);
+        } catch (APIManagementException | APIImportExportException e) {
+            RestApiUtil.handleInternalServerError("Error while exporting " + RestApiConstants.RESOURCE_API, e, log);
         }
         return null;
     }

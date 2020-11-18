@@ -39,12 +39,14 @@ public final class APIImportExportConstants {
     //location of the api YAML file
     public static final String JSON_API_FILE_LOCATION = File.separator + "Meta-information" + File.separator +
             "api.json";
+    //location of the api definition file
+    public static final String API_FILE_LOCATION = File.separator + "Meta-information" + File.separator + "api";
     //name of the id element tag of the api.json file
     public static final String ID_ELEMENT = "id";
     //name of the api provider element tag of the api.json file
-    public static final String PROVIDER_ELEMENT = "providerName";
+    public static final String PROVIDER_ELEMENT = "provider";
     //name of the api name element tag of the api.json file
-    public static final String API_NAME_ELEMENT = "apiName";
+    public static final String API_NAME_ELEMENT = "name";
     //name of the api version element tag of the api.json file
     public static final String VERSION_ELEMENT = "version";
 
@@ -57,10 +59,14 @@ public final class APIImportExportConstants {
     //location of the api swagger definition file
     public static final String YAML_SWAGGER_DEFINITION_LOCATION = File.separator
             + APIImportExportConstants.META_INFO_DIRECTORY + File.separator + "swagger.yaml";
+    //location of the api swagger definition file
+    public static final String SWAGGER_DEFINITION_LOCATION = File.separator
+            + APIImportExportConstants.META_INFO_DIRECTORY + File.separator + "swagger";
     //location of the graphql schema definition file
     public static final String GRAPHQL_SCHEMA_DEFINITION_LOCATION = File.separator
             + APIImportExportConstants.META_INFO_DIRECTORY + File.separator + "schema.graphql";
-
+    public static final String JSON_EXTENSION = ".json";
+    public static final String YAML_EXTENSION = ".yaml";
     public static final int REFER_REQUIRE_RE_SUBSCRIPTION_CHECK_ITEM = 1;
 
     //Image resource
@@ -77,6 +83,7 @@ public final class APIImportExportConstants {
     //location of the documents YAML file
     public static final String YAML_DOCUMENT_FILE_LOCATION = File.separator + APIImportExportConstants.DOCUMENT_DIRECTORY
             + File.separator + "docs.yaml";
+    public static final String DOCUMENT_FILE_NAME = File.separator + "docs";
     //name of the physical file type
     public static final String FILE_DOC_TYPE = "FILE";
     //location of the in sequence
@@ -103,25 +110,33 @@ public final class APIImportExportConstants {
 
     public static final String META_INFO_DIRECTORY = "Meta-information";
 
-    public static final String YAML_ENDPOINTS_CERTIFICATE_FILE = File.separator
-            + APIImportExportConstants.META_INFO_DIRECTORY + File.separator + "endpoint_certificates.yaml";
+    public static final String ENDPOINT_CERTIFICATES_DIRECTORY = "Endpoint-certificates";
 
-    public static final String JSON_ENDPOINTS_CERTIFICATE_FILE = File.separator
-            + APIImportExportConstants.META_INFO_DIRECTORY + File.separator + "endpoint_certificates.json";
-    
-    public static final String YAML_CLIENT_CERTIFICATE_FILE = File.separator
-            + APIImportExportConstants.META_INFO_DIRECTORY + File.separator + "client_certificates.yaml";
+    public static final String CLIENT_CERTIFICATES_DIRECTORY = "Client-certificates";
 
-    public static final String JSON_CLIENT_CERTIFICATE_FILE = File.separator
-            + APIImportExportConstants.META_INFO_DIRECTORY + File.separator + "client_certificates.json";
+    public static final String YAML_ENDPOINTS_CERTIFICATE_FILE = File.separator + "endpoint_certificates.yaml";
+
+    public static final String JSON_ENDPOINTS_CERTIFICATE_FILE = File.separator + "endpoint_certificates.json";
+
+    public static final String ENDPOINTS_CERTIFICATE_FILE = File.separator + "endpoint_certificates";
+
+    public static final String YAML_CLIENT_CERTIFICATE_FILE = File.separator + "client_certificates.yaml";
+
+    public static final String JSON_CLIENT_CERTIFICATE_FILE = File.separator + "client_certificates.json";
+
+    public static final String CLIENT_CERTIFICATE_FILE = File.separator + "client_certificates";
 
     public static final String APIS_DIRECTORY = "APIs";
     
     public static final String HOSTNAME_JSON_KEY = "hostName";
 
+    public static final String ENDPOINT_JSON_KEY = "endpoint";
+
     public static final String ALIAS_JSON_KEY = "alias";
 
     public static final String CERTIFICATE_CONTENT_JSON_KEY = "certificate";
+
+    public static final String CERTIFICATE_FILE = "file";
 
     public static final String NODE_TRANSITION = "transition";
 
@@ -136,4 +151,14 @@ public final class APIImportExportConstants {
         // To identify thumbnail icons
         fileExtensionMapping.put("application/json", "json");
     }
+
+    public static final String TYPE_API = "api";
+
+    public static final String TYPE_DOCUMENTS = "documents";
+
+    public static final String TYPE_ENDPOINT_CERTIFICATES = "endpoint_certificates";
+
+    public static final String TYPE_CLIENT_CERTIFICATES = "client_certificates";
+
+    public static final String APIM_VERSION = "v4";
 }

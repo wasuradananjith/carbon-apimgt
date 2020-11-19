@@ -151,6 +151,7 @@ public class APIAndAPIProductCommonUtils {
      * @param apiProvider     API Provider
      * @throws APIImportExportException If an error occurs while retrieving documents from the
      *                                  registry or storing in the archive directory
+     * @throws APIManagementException If an error occurs while retrieving document details
      */
     public static void exportAPIOrAPIProductDocumentation(String archivePath, Identifier identifier, Registry registry,
                                                           ExportFormat exportFormat, APIProvider apiProvider)

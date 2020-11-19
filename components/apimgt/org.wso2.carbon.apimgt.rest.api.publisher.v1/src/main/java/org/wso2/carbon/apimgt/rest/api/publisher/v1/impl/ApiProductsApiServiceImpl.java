@@ -20,6 +20,7 @@ package org.wso2.carbon.apimgt.rest.api.publisher.v1.impl;
 
 import com.google.gson.Gson;
 import org.apache.commons.collections.MapUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.cxf.jaxrs.ext.MessageContext;
 import org.wso2.carbon.apimgt.api.APIDefinition;
@@ -32,14 +33,16 @@ import org.wso2.carbon.apimgt.api.model.Monetization;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.definitions.OAS3Parser;
 import org.wso2.carbon.apimgt.impl.definitions.OASParserUtil;
+import org.wso2.carbon.apimgt.impl.importexport.APIImportExportException;
+import org.wso2.carbon.apimgt.impl.importexport.ExportFormat;
+import org.wso2.carbon.apimgt.impl.importexport.utils.CommonUtil;
+import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.*;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIMonetizationInfoDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIProductDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIProductListDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.DocumentDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.FileInfoDTO;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.DocumentListDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.*;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.APIAndAPIProductCommonUtils;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.ExportApiProductUtils;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.ExportApiUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.APIMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.RestApiPublisherUtils;
 
@@ -48,8 +51,11 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIProductDTO.Visibility
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.DocumentationMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.util.RestApiConstants;
 import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
+import org.wso2.carbon.registry.api.RegistryException;
+import org.wso2.carbon.registry.core.session.UserRegistry;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
+import java.io.File;
 import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -621,6 +627,96 @@ public class ApiProductsApiServiceImpl implements ApiProductsApiService {
         } catch (URISyntaxException e) {
             String errorMessage = "Error while retrieving thumbnail location of API Product : " + apiProductId;
             RestApiUtil.handleInternalServerError(errorMessage, e, log);
+        }
+        return null;
+    }
+
+    @Override
+    public Response apiProductsExportGet(String name, String version, String providerName, String format,
+                                         Boolean preserveStatus, MessageContext messageContext)
+            throws APIManagementException {
+        APIProductIdentifier apiProductIdentifier;
+        preserveStatus = preserveStatus == null || preserveStatus;
+        int tenantId = 0;
+        APIProductDTO apiProductDtoToReturn;
+        // Default export format is YAML
+        ExportFormat exportFormat = StringUtils.isNotEmpty(format) ? ExportFormat.valueOf(format.toUpperCase()) :
+                ExportFormat.YAML;
+
+        try {
+            APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
+            String userName = RestApiUtil.getLoggedInUsername();
+
+            if (name == null || version == null) {
+                RestApiUtil.handleBadRequest("'name' (" + name + ") or 'version' (" + version
+                        + ") should not be null.", log);
+            }
+            String apiRequesterDomain = RestApiUtil.getLoggedInUserTenantDomain();
+
+            // If provider name is not given
+            if (StringUtils.isBlank(providerName)) {
+                // Retrieve the provider who is in same tenant domain and who owns the same API (by comparing
+                // API name and the version)
+                providerName = APIUtil.getAPIProviderFromAPINameVersionTenant(name, version, apiRequesterDomain);
+
+                // If there is no provider in current domain, the API cannot be exported
+                if (providerName == null) {
+                    String errorMessage = "Error occurred while exporting. API Product: " + name + " version: " + version
+                            + " not found";
+                    RestApiUtil.handleResourceNotFoundError(errorMessage, log);
+                }
+            }
+
+            if (!StringUtils.equals(MultitenantUtils.getTenantDomain(providerName), apiRequesterDomain)) {
+                // Not authorized to export requested API
+                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_API +
+                        " name:" + name + " version:" + version + " provider:" + providerName, log);
+            }
+            apiProductIdentifier = new APIProductIdentifier(APIUtil.replaceEmailDomain(providerName), name, version);
+            APIProduct apiProduct = apiProvider.getAPIProduct(apiProductIdentifier);
+            apiProductDtoToReturn = APIMappingUtil.fromAPIProducttoDTO(apiProduct);
+
+            // Create temp location for storing API data
+            File exportFolder = CommonUtil.createTempDirectory(apiProductIdentifier);
+            String exportAPIProductBasePath = exportFolder.toString();
+            String archivePath = exportAPIProductBasePath.concat(File.separator + apiProductIdentifier.getName() + "-"
+                    + apiProductIdentifier.getVersion());
+            tenantId = APIUtil.getTenantId(userName);
+            UserRegistry registry = ServiceReferenceHolder.getInstance().getRegistryService().
+                    getGovernanceSystemRegistry(tenantId);
+
+            CommonUtil.createDirectory(archivePath);
+
+            ExportApiProductUtils.exportAPIProductThumbnail(archivePath, apiProductIdentifier, registry);
+            ExportApiProductUtils.exportAPIProductDocumentation(archivePath, apiProductIdentifier, registry,
+                    exportFormat, apiProvider);
+            ExportApiProductUtils.exportAPIProductMetaInformation(archivePath, apiProductDtoToReturn, exportFormat,
+                    apiProvider, userName);
+            ExportApiProductUtils.exportDependentAPIs(archivePath, apiProduct, exportFormat, apiProvider,
+                    userName, preserveStatus);
+
+            // Export mTLS authentication related certificates
+            if (apiProvider.isClientCertificateBasedAuthenticationConfigured()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Mutual SSL enabled. Exporting client certificates.");
+                }
+                ApiTypeWrapper apiTypeWrapper = new ApiTypeWrapper(APIMappingUtil.
+                        fromDTOtoAPIProduct(apiProductDtoToReturn, userName));
+                APIAndAPIProductCommonUtils.exportClientCertificates(archivePath, apiTypeWrapper, tenantId, apiProvider,
+                        exportFormat);
+            }
+            CommonUtil.archiveDirectory(exportAPIProductBasePath);
+            FileUtils.deleteQuietly(new File(exportAPIProductBasePath));
+            File file = new File(exportAPIProductBasePath + APIConstants.ZIP_FILE_EXTENSION);
+            return Response.ok(file)
+                    .header(RestApiConstants.HEADER_CONTENT_DISPOSITION, "attachment; filename=\""
+                            + file.getName() + "\"")
+                    .build();
+        } catch (RegistryException e) {
+            String errorMessage = "Error while getting governance registry for tenant: " + tenantId;
+            throw new APIManagementException(errorMessage, e);
+        } catch (APIManagementException | APIImportExportException e) {
+            RestApiUtil.handleInternalServerError("Error while exporting " + RestApiConstants.RESOURCE_API, e, log);
         }
         return null;
     }

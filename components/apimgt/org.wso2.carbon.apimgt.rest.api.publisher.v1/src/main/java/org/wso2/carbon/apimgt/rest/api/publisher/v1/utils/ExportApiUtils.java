@@ -174,6 +174,7 @@ public class ExportApiUtils {
      * @param apiProvider   API Provider
      * @throws APIImportExportException If an error occurs while retrieving documents from the
      *                                  registry or storing in the archive directory
+     * @throws APIManagementException If an error occurs while retrieving document details
      */
     public static void exportAPIDocumentation(String archivePath, APIIdentifier apiIdentifier, Registry registry,
                                               ExportFormat exportFormat, APIProvider apiProvider)
@@ -650,5 +651,63 @@ public class ExportApiUtils {
             throw new APIManagementException(msg, e);
         }
         return false;
+    }
+
+    public static File exportApi(APIProvider apiProvider, APIIdentifier apiIdentifier, APIDTO apiDtoToReturn,
+                                 String userName, ExportFormat exportFormat, Boolean preserveStatus)
+            throws APIManagementException {
+        int tenantId = 0;
+        try {
+            // Create temp location for storing API data
+            File exportFolder = CommonUtil.createTempDirectory(apiIdentifier);
+            String exportAPIBasePath = exportFolder.toString();
+            String archivePath = exportAPIBasePath.concat(File.separator + apiIdentifier.getApiName() + "-"
+                    + apiIdentifier.getVersion());
+            tenantId = APIUtil.getTenantId(userName);
+            UserRegistry registry = ServiceReferenceHolder.getInstance().getRegistryService().
+                    getGovernanceSystemRegistry(tenantId);
+
+            CommonUtil.createDirectory(archivePath);
+
+            ExportApiUtils.exportAPIThumbnail(archivePath, apiIdentifier, registry);
+            ExportApiUtils.exportSOAPToRESTMediation(archivePath, apiIdentifier, registry);
+            ExportApiUtils.exportAPIDocumentation(archivePath, apiIdentifier, registry, exportFormat, apiProvider);
+
+            if (StringUtils.isNotEmpty(apiDtoToReturn.getWsdlUrl())) {
+                ExportApiUtils.exportWSDL(archivePath, apiIdentifier, registry);
+            } else if (log.isDebugEnabled()) {
+                log.debug("No WSDL URL found for API: " + apiIdentifier + ". Skipping WSDL export.");
+            }
+
+            ExportApiUtils.exportSequences(archivePath, APIMappingUtil.fromDTOtoAPI(apiDtoToReturn, userName), registry);
+
+            // Set API status to created if the status is not preserved
+            if (!preserveStatus) {
+                apiDtoToReturn.setLifeCycleStatus(APIConstants.CREATED);
+            }
+
+            ExportApiUtils.exportEndpointCertificates(archivePath, apiDtoToReturn, tenantId, exportFormat);
+            ExportApiUtils.exportAPIMetaInformation(archivePath, apiDtoToReturn, exportFormat, apiProvider,
+                    apiIdentifier, userName);
+
+            // Export mTLS authentication related certificates
+            if (apiProvider.isClientCertificateBasedAuthenticationConfigured()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Mutual SSL enabled. Exporting client certificates.");
+                }
+                ApiTypeWrapper apiTypeWrapper = new ApiTypeWrapper(APIMappingUtil.fromDTOtoAPI(apiDtoToReturn, userName));
+                APIAndAPIProductCommonUtils.exportClientCertificates(archivePath, apiTypeWrapper, tenantId, apiProvider,
+                        exportFormat);
+            }
+            CommonUtil.archiveDirectory(exportAPIBasePath);
+            FileUtils.deleteQuietly(new File(exportAPIBasePath));
+            return new File(exportAPIBasePath + APIConstants.ZIP_FILE_EXTENSION);
+        } catch (RegistryException e) {
+            String errorMessage = "Error while getting governance registry for tenant: " + tenantId;
+            throw new APIManagementException(errorMessage, e);
+        } catch (APIManagementException | APIImportExportException e) {
+            RestApiUtil.handleInternalServerError("Error while exporting " + RestApiConstants.RESOURCE_API, e, log);
+        }
+        return null;
     }
 }

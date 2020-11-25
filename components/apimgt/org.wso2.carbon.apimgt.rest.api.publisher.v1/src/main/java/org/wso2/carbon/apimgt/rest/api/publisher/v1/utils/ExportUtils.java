@@ -59,6 +59,7 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIProductDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.MediationPolicyDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ProductAPIDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.APIMappingUtil;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.DocumentationMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.util.RestApiConstants;
 import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
 import org.wso2.carbon.registry.api.Collection;
@@ -79,10 +80,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public class ExportUtils {
@@ -384,7 +383,6 @@ public class ExportUtils {
         List<Documentation> docList = apiProvider.getAllDocumentation(identifier);
         String tenantDomain = RestApiUtil.getLoggedInUserTenantDomain();
         if (!docList.isEmpty()) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
             String docDirectoryPath = archivePath + File.separator + ImportExportConstants.DOCUMENT_DIRECTORY;
             CommonUtil.createDirectory(docDirectoryPath);
             try {
@@ -397,9 +395,6 @@ public class ExportUtils {
                     String individualDocDirectoryPath = docDirectoryPath + File.separator +
                             individualDocument.getName();
                     CommonUtil.createDirectory(individualDocDirectoryPath);
-                    writeDtoToFile(individualDocDirectoryPath +
-                                    ImportExportConstants.DOCUMENT_FILE_NAME, exportFormat,
-                            ImportExportConstants.TYPE_DOCUMENTS, individualDocument);
                     if (Documentation.DocumentSourceType.FILE.toString().equalsIgnoreCase(sourceType)) {
                         localFileName = individualDocument.getFilePath().substring(
                                 individualDocument.getFilePath().lastIndexOf(RegistryConstants.PATH_SEPARATOR) + 1);
@@ -413,6 +408,9 @@ public class ExportUtils {
                                 APIConstants.INLINE_DOCUMENT_CONTENT_DIR + RegistryConstants.PATH_SEPARATOR +
                                 localFileName;
                     }
+                    writeDtoToFile(individualDocDirectoryPath + ImportExportConstants.DOCUMENT_FILE_NAME, exportFormat,
+                            ImportExportConstants.TYPE_DOCUMENTS,
+                            DocumentationMappingUtil.fromDocumentationToDTO(individualDocument));
 
                     if (resourcePath != null) {
                         // Write content for Inline/Markdown/File type documentations only
@@ -530,13 +528,6 @@ public class ExportUtils {
                         pathToExportedSequence += ImportExportConstants.CUSTOM_TYPE + File.separator;
                     }
                     writeSequenceToFile(pathToExportedSequence, sequenceDetails, apiIdentifier);
-                    try {
-                        writeDtoToFile(pathToIndividualSequenceFile, exportFormat, ImportExportConstants.TYPE_SEQUENCE,
-                                mediationPolicyDto);
-                    } catch (IOException e) {
-                        String errorMessage = "I/O error while writing sequence: " + sequenceName + " to file";
-                        throw new APIImportExportException(errorMessage, e);
-                    }
                 }
             }
         } else if (log.isDebugEnabled()) {

@@ -40,10 +40,10 @@ import org.wso2.carbon.apimgt.api.dto.CertificateMetadataDTO;
 import org.wso2.carbon.apimgt.api.dto.ClientCertificateDTO;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.APIIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIProduct;
 import org.wso2.carbon.apimgt.api.model.APIProductIdentifier;
 import org.wso2.carbon.apimgt.api.model.Documentation;
 import org.wso2.carbon.apimgt.api.model.Identifier;
+import org.wso2.carbon.apimgt.api.model.ResourceFile;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.certificatemgt.CertificateManager;
 import org.wso2.carbon.apimgt.impl.certificatemgt.CertificateManagerImpl;
@@ -160,7 +160,7 @@ public class ExportUtils {
 
             CommonUtil.createDirectory(archivePath);
 
-            addThumbnailToArchive(archivePath, apiIdentifier, registry);
+            addThumbnailToArchive(archivePath, apiIdentifier, apiProvider, APIConstants.API_IDENTIFIER_TYPE);
             addSOAPToRESTMediationToArchive(archivePath, apiIdentifier, registry);
             addDocumentationToArchive(archivePath, apiIdentifier, registry, exportFormat, apiProvider);
 
@@ -228,11 +228,11 @@ public class ExportUtils {
             tenantId = APIUtil.getTenantId(userName);
             UserRegistry registry = ServiceReferenceHolder.getInstance().getRegistryService().
                     getGovernanceSystemRegistry(tenantId);
-            APIProduct apiProduct = APIMappingUtil.fromDTOtoAPIProduct(apiProductDtoToReturn, userName);
 
             CommonUtil.createDirectory(archivePath);
 
-            addThumbnailToArchive(archivePath, apiProductIdentifier, registry);
+            addThumbnailToArchive(archivePath, apiProductIdentifier, apiProvider,
+                    APIConstants.API_PRODUCT_IDENTIFIER_TYPE);
             addDocumentationToArchive(archivePath, apiProductIdentifier, registry, exportFormat, apiProvider);
             addAPIProductMetaInformationToArchive(archivePath, apiProductDtoToReturn, exportFormat, apiProvider,
                     userName);
@@ -264,32 +264,33 @@ public class ExportUtils {
      *
      * @param archivePath File path to export the thumbnail image
      * @param identifier  ID of the requesting API or API Product
-     * @param registry    Current tenant registry
+     * @param apiProvider API Provider
+     * @param type        Type (whether an API or an API Product)
      * @throws APIImportExportException If an error occurs while retrieving image from the registry or
      *                                  storing in the archive directory
+     * @throws APIManagementException   If an error occurs when retrieving the icon of the API
      */
-    public static void addThumbnailToArchive(String archivePath, Identifier identifier, Registry registry)
-            throws APIImportExportException {
-        String thumbnailUrl = APIConstants.API_IMAGE_LOCATION + RegistryConstants.PATH_SEPARATOR
-                + identifier.getProviderName() + RegistryConstants.PATH_SEPARATOR + identifier.getName()
-                + RegistryConstants.PATH_SEPARATOR + identifier.getVersion() + RegistryConstants.PATH_SEPARATOR
-                + APIConstants.API_ICON_IMAGE;
+    public static void addThumbnailToArchive(String archivePath, Identifier identifier, APIProvider apiProvider, String type)
+            throws APIImportExportException, APIManagementException {
         String localImagePath = archivePath + File.separator + ImportExportConstants.IMAGE_RESOURCE;
         try {
-            if (registry.resourceExists(thumbnailUrl)) {
-                Resource icon = registry.get(thumbnailUrl);
-                String mediaType = icon.getMediaType();
+            ResourceFile thumbnailResource = StringUtils.equals(type, APIConstants.API_IDENTIFIER_TYPE) ?
+                    apiProvider.getIcon((APIIdentifier) identifier) :
+                    apiProvider.getProductIcon((APIProductIdentifier) identifier);
+            if (thumbnailResource != null) {
+                String mediaType = thumbnailResource.getContentType();
                 String extension = ImportExportConstants.fileExtensionMapping.get(mediaType);
                 if (extension != null) {
                     CommonUtil.createDirectory(localImagePath);
-                    try (InputStream imageDataStream = icon.getContentStream();
-                         OutputStream outputStream = new FileOutputStream(localImagePath + File.separator
-                                 + APIConstants.API_ICON_IMAGE + APIConstants.DOT + extension)) {
+                    try (InputStream imageDataStream = thumbnailResource.getContent();
+                            OutputStream outputStream = new FileOutputStream(
+                                    localImagePath + File.separator + APIConstants.API_ICON_IMAGE + APIConstants.DOT
+                                            + extension)) {
                         IOUtils.copy(imageDataStream, outputStream);
                         if (log.isDebugEnabled()) {
-                            log.debug("Thumbnail image retrieved successfully for API/API Product: " +
-                                    identifier.getName() + StringUtils.SPACE + APIConstants.API_DATA_VERSION + ": "
-                                    + identifier.getVersion());
+                            log.debug("Thumbnail image retrieved successfully for API/API Product: " + identifier
+                                    .getName() + StringUtils.SPACE + APIConstants.API_DATA_VERSION + ": " + identifier
+                                    .getVersion());
                         }
                     }
                 } else {
@@ -297,16 +298,14 @@ public class ExportUtils {
                     log.error("Unsupported media type for icon " + mediaType + ". Skipping thumbnail export.");
                 }
             } else if (log.isDebugEnabled()) {
-                log.debug("Thumbnail URL [" + thumbnailUrl + "] does not exists in registry for API/API Product: "
-                        + identifier.getName() + StringUtils.SPACE + APIConstants.API_DATA_VERSION + ": "
-                        + identifier.getVersion() + ". Skipping thumbnail export.");
+                log.debug("Thumbnail URL does not exists in registry for API/API Product: " + identifier.getName()
+                        + StringUtils.SPACE + APIConstants.API_DATA_VERSION + ": " + identifier.getVersion()
+                        + ". Skipping thumbnail export.");
             }
-        } catch (RegistryException e) {
-            log.error("Error while retrieving API/API Product Thumbnail " + thumbnailUrl, e);
         } catch (IOException e) {
             //Exception is ignored by logging due to the reason that Thumbnail is not essential for
             //an API to be recreated.
-            log.error("I/O error while writing API/API Product Thumbnail: " + thumbnailUrl + " to file", e);
+            log.error("I/O error while writing API/API Product Thumbnail to file", e);
         }
     }
 

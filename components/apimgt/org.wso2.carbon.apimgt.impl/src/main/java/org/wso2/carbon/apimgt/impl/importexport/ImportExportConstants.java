@@ -132,6 +132,13 @@ public final class ImportExportConstants {
 
     public static final String ENDPOINT_JSON_KEY = "endpoint";
 
+    public static final int REFER_REQUIRE_RE_SUBSCRIPTION_CHECK_ITEM = 1;
+
+    public static final String NODE_TRANSITION = "transition";
+
+    // Since API Products currently don't have versioning support, every API Product will have this version
+    public static final String DEFAULT_API_PRODUCT_VERSION = "1.0.0";
+
     static {
         fileExtensionMapping.put("image/png", "png");
         fileExtensionMapping.put("image/jpeg", "jpeg");

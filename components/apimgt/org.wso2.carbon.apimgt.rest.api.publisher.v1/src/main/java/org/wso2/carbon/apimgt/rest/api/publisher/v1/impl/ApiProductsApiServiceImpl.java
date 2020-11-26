@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.cxf.jaxrs.ext.MessageContext;
+import org.apache.cxf.phase.PhaseInterceptorChain;
 import org.wso2.carbon.apimgt.api.APIDefinition;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.APIProvider;
@@ -32,6 +33,7 @@ import org.wso2.carbon.apimgt.api.model.Monetization;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.definitions.OAS3Parser;
 import org.wso2.carbon.apimgt.impl.definitions.OASParserUtil;
+import org.wso2.carbon.apimgt.impl.importexport.APIImportExportException;
 import org.wso2.carbon.apimgt.impl.importexport.ExportFormat;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.*;
@@ -42,6 +44,7 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.DocumentDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.FileInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.DocumentListDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.ExportUtils;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.ImportUtils;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.APIMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.RestApiPublisherUtils;
 
@@ -50,6 +53,7 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIProductDTO.Visibility
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.DocumentationMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.util.RestApiConstants;
 import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
+import org.wso2.carbon.core.util.CryptoException;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.File;
@@ -473,53 +477,7 @@ public class ApiProductsApiServiceImpl implements ApiProductsApiService {
             if (retrievedProduct == null) {
                 RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_API_PRODUCT, apiProductId, log);
             }
-
-            List<String> apiSecurity = body.getSecurityScheme();
-            //validation for tiers
-            List<String> tiersFromDTO = body.getPolicies();
-            if (apiSecurity.contains(APIConstants.DEFAULT_API_SECURITY_OAUTH2) ||
-                    apiSecurity.contains(APIConstants.API_SECURITY_API_KEY)) {
-                if (tiersFromDTO == null || tiersFromDTO.isEmpty()) {
-                    RestApiUtil.handleBadRequest("No tier defined for the API Product", log);
-                }
-            }
-
-            //check whether the added API Products's tiers are all valid
-            Set<Tier> definedTiers = apiProvider.getTiers();
-            List<String> invalidTiers = RestApiUtil.getInvalidTierNames(definedTiers, tiersFromDTO);
-            if (!invalidTiers.isEmpty()) {
-                RestApiUtil.handleBadRequest(
-                        "Specified tier(s) " + Arrays.toString(invalidTiers.toArray()) + " are invalid", log);
-            }
-            if (body.getAdditionalProperties() != null) {
-                String errorMessage = RestApiPublisherUtils
-                        .validateAdditionalProperties(body.getAdditionalProperties());
-                if (!errorMessage.isEmpty()) {
-                    RestApiUtil.handleBadRequest(errorMessage, log);
-                }
-            }
-
-            //only publish api product if tiers are defined
-            if(StateEnum.PUBLISHED.equals(body.getState())) {
-                //if the already created API product does not have tiers defined and the update request also doesn't
-                //have tiers defined, then the product should not moved to PUBLISHED state.
-                if (retrievedProduct.getAvailableTiers() == null && body.getPolicies() == null) {
-                    RestApiUtil.handleBadRequest("Policy needs to be defined before publishing the API Product", log);
-                }
-            }
-
-            APIProduct product = APIMappingUtil.fromDTOtoAPIProduct(body, username);
-            //We do not allow to modify provider,name,version  and uuid. Set the origial value
-            APIProductIdentifier productIdentifier = retrievedProduct.getId();
-            product.setID(productIdentifier);
-            product.setUuid(apiProductId);
-
-            Map<API, List<APIProductResource>> apiToProductResourceMapping = apiProvider.updateAPIProduct(product);
-            apiProvider.updateAPIProductSwagger(apiToProductResourceMapping, product);
-
-            //preserve monetization status in the update flow
-            apiProvider.configureMonetizationInAPIProductArtifact(product);
-            APIProduct updatedProduct = apiProvider.getAPIProduct(productIdentifier);
+            APIProduct updatedProduct = RestApiPublisherUtils.updateApiProduct(retrievedProduct, body, apiProvider, username);
             APIProductDTO updatedProductDTO = APIMappingUtil.fromAPIProducttoDTO(updatedProduct);
             return Response.ok().entity(updatedProductDTO).build();
         } catch (APIManagementException | FaultGatewaysException e) {
@@ -721,64 +679,79 @@ public class ApiProductsApiServiceImpl implements ApiProductsApiService {
         return null;
     }
 
-    @Override public Response apiProductsPost(APIProductDTO body, MessageContext messageContext) {
-        String provider = null;
+    /**
+     * Import an API Product by uploading an archive file. All relevant API Product data will be included upon the creation of
+     * the API Product. Depending on the choice of the user, provider of the imported API Product will be preserved or modified.
+     *
+     * @param fileInputStream       UploadedInputStream input stream from the REST request
+     * @param fileDetail            File details as Attachment
+     * @param preserveProvider      User choice to keep or replace the API Product provider
+     * @param importAPIs            Whether to import the dependent APIs or not.
+     * @param overwriteAPIProduct   Whether to update the API Product or not. This is used when updating already existing API Products.
+     * @param overwriteAPIs         Whether to update the dependent APIs or not. This is used when updating already existing dependent APIs of an API Product.
+     * @return API Product import response
+     */
+    @Override public Response apiProductsImportPost(InputStream fileInputStream, Attachment fileDetail,
+            Boolean preserveProvider, Boolean importAPIs, Boolean overwriteAPIProduct, Boolean overwriteAPIs,
+            MessageContext messageContext) throws APIManagementException {
+        // If importAPIs flag is not set, the default value is false
+        importAPIs = importAPIs == null ? false : importAPIs;
+
+        // Get the scopes associated with the token
+        String[] tokenScopes = (String[]) PhaseInterceptorChain.getCurrentMessage().getExchange()
+                .get(RestApiConstants.USER_REST_API_SCOPES);
+
+        // Validate if the USER_REST_API_SCOPES is not set in WebAppAuthenticator when scopes are validated
+        // If the user need to import dependent APIs and the user has the required scope for that, allow the user to do it
+        if (tokenScopes == null) {
+            RestApiUtil.handleInternalServerError("Error occurred while importing the API Product", log);
+            return null;
+        } else {
+            importAPIs = importAPIs && Arrays.asList(tokenScopes).contains(RestApiConstants.API_IMPORT_EXPORT_SCOPE);
+        }
+
+        // Check whether to update the API Product. If not specified, default value is false.
+        overwriteAPIProduct = overwriteAPIProduct == null ? false : overwriteAPIProduct;
+
+        // Check whether to update the dependent APIs. If not specified, default value is false.
+        overwriteAPIs = overwriteAPIs == null ? false : overwriteAPIs;
+
+        // Check if the URL parameter value is specified, otherwise the default value is true.
+        preserveProvider = preserveProvider == null || preserveProvider;
+
+        try {
+            String extractedFolderPath = ImportUtils.getArchivePathOfExtractedDirectory(fileInputStream);
+            ImportUtils.importApiProduct(extractedFolderPath, preserveProvider, overwriteAPIProduct, overwriteAPIs,
+                    importAPIs);
+            return Response.status(Response.Status.OK).entity("API Product imported successfully.").build();
+        } catch (APIImportExportException e) {
+            if (RestApiUtil.isDueToResourceAlreadyExists(e)) {
+                String errorMessage = "Error occurred while importing. Duplicate API/API Product already exists.";
+                RestApiUtil.handleResourceAlreadyExistsError(errorMessage, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                // Auth failure occurs when cross tenant accessing APIs with preserve provider true.
+                String errorMessage = "Not Authorized to import cross tenant API Products with preserveProvider true.";
+                RestApiUtil.handleAuthorizationFailure(errorMessage, e, log);
+            } else if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(
+                        "Requested " + RestApiConstants.RESOURCE_API_PRODUCT + "/" + RestApiConstants.RESOURCE_API
+                                + " not found", e, log);
+            } else if (RestApiUtil.isDueToProvidedThrottlingPolicyMissing(e)) {
+                RestApiUtil.handleResourceNotFoundError(
+                        "Error while adding the throttling policy. " + "Provided throttling policy cannot be found.", e,
+                        log);
+            }
+            RestApiUtil.handleInternalServerError("Error while importing API Product", e, log);
+        }
+        return null;
+    }
+
+    @Override
+    public Response apiProductsPost(APIProductDTO body, MessageContext messageContext) {
+        String provider = body.getProvider();
         try {
             APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
-            String username = RestApiUtil.getLoggedInUsername();
-            // if not add product
-            provider = body.getProvider();
-            if (!StringUtils.isBlank(provider) && !provider.equals(username)) {
-                if (!APIUtil.hasPermission(username, Permissions.APIM_ADMIN)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("User " + username + " does not have admin permission ("
-                                + Permissions.APIM_ADMIN + ") hence provider (" + provider
-                                + ") overridden with current user (" + username + ")");
-                    }
-                    provider = username;
-                }
-            } else {
-                // Set username in case provider is null or empty
-                provider = username;
-            }
-
-            List<String> tiersFromDTO = body.getPolicies();
-            Set<Tier> definedTiers = apiProvider.getTiers();
-            List<String> invalidTiers = RestApiUtil.getInvalidTierNames(definedTiers, tiersFromDTO);
-            if (!invalidTiers.isEmpty()) {
-                RestApiUtil.handleBadRequest(
-                        "Specified tier(s) " + Arrays.toString(invalidTiers.toArray()) + " are invalid", log);
-            }
-            if (body.getAdditionalProperties() != null) {
-                String errorMessage = RestApiPublisherUtils
-                        .validateAdditionalProperties(body.getAdditionalProperties());
-                if (!errorMessage.isEmpty()) {
-                    RestApiUtil.handleBadRequest(errorMessage, log);
-                }
-            }
-            if (body.getVisibility() == null) {
-                //set the default visibility to PUBLIC
-                body.setVisibility(VisibilityEnum.PUBLIC);
-            }
-
-            if (body.getAuthorizationHeader() == null) {
-                body.setAuthorizationHeader(APIUtil
-                        .getOAuthConfigurationFromAPIMConfig(APIConstants.AUTHORIZATION_HEADER));
-            }
-            if (body.getAuthorizationHeader() == null) {
-                body.setAuthorizationHeader(APIConstants.AUTHORIZATION_HEADER_DEFAULT);
-            }
-
-            APIProduct productToBeAdded = APIMappingUtil.fromDTOtoAPIProduct(body, provider);
-
-            Map<API, List<APIProductResource>> apiToProductResourceMapping = apiProvider.addAPIProductWithoutPublishingToGateway(productToBeAdded);
-            apiProvider.addAPIProductSwagger(apiToProductResourceMapping, productToBeAdded);
-
-            APIProductIdentifier createdAPIProductIdentifier = productToBeAdded.getId();
-            APIProduct createdProduct = apiProvider.getAPIProduct(createdAPIProductIdentifier);
-
-            apiProvider.saveToGateway(createdProduct);
-
+            APIProduct createdProduct = addAPIProductWithGeneratedSwaggerDefinition(body, provider, apiProvider);
             APIProductDTO createdApiProductDTO = APIMappingUtil.fromAPIProducttoDTO(createdProduct);
             URI createdApiProductUri = new URI(
                     RestApiConstants.RESOURCE_PATH_API_PRODUCTS + "/" + createdApiProductDTO.getId());
@@ -794,6 +767,74 @@ public class ApiProductsApiServiceImpl implements ApiProductsApiService {
             RestApiUtil.handleInternalServerError(errorMessage, e, log);
         }
         return null;
+    }
+
+    /**
+     * Add API Product with the generated swagger from the DTO
+     *
+     * @param apiProductDTO API Product DTO
+     * @param provider      Provider name
+     * @param apiProvider   API Product Provider
+     * @return Created API Product object
+     * @throws APIManagementException Error while creating the API Product
+     * @throws FaultGatewaysException Error while adding the API Product to gateway
+     */
+    public APIProduct addAPIProductWithGeneratedSwaggerDefinition(APIProductDTO apiProductDTO, String provider,
+            APIProvider apiProvider) throws APIManagementException, FaultGatewaysException {
+        String username = RestApiUtil.getLoggedInUsername();
+        // if not add product
+        if (!StringUtils.isBlank(provider) && !provider.equals(username)) {
+            if (!APIUtil.hasPermission(username, Permissions.APIM_ADMIN)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("User " + username + " does not have admin permission (" + Permissions.APIM_ADMIN
+                            + ") hence provider (" + provider + ") overridden with current user (" + username + ")");
+                }
+                provider = username;
+            }
+        } else {
+            // Set username in case provider is null or empty
+            provider = username;
+        }
+
+        List<String> tiersFromDTO = apiProductDTO.getPolicies();
+        Set<Tier> definedTiers = apiProvider.getTiers();
+        List<String> invalidTiers = RestApiUtil.getInvalidTierNames(definedTiers, tiersFromDTO);
+        if (!invalidTiers.isEmpty()) {
+            RestApiUtil
+                    .handleBadRequest("Specified tier(s) " + Arrays.toString(invalidTiers.toArray()) + " are invalid",
+                            log);
+        }
+        if (apiProductDTO.getAdditionalProperties() != null) {
+            String errorMessage = RestApiPublisherUtils
+                    .validateAdditionalProperties(apiProductDTO.getAdditionalProperties());
+            if (!errorMessage.isEmpty()) {
+                RestApiUtil.handleBadRequest(errorMessage, log);
+            }
+        }
+        if (apiProductDTO.getVisibility() == null) {
+            //set the default visibility to PUBLIC
+            apiProductDTO.setVisibility(VisibilityEnum.PUBLIC);
+        }
+
+        if (apiProductDTO.getAuthorizationHeader() == null) {
+            apiProductDTO.setAuthorizationHeader(
+                    APIUtil.getOAuthConfigurationFromAPIMConfig(APIConstants.AUTHORIZATION_HEADER));
+        }
+        if (apiProductDTO.getAuthorizationHeader() == null) {
+            apiProductDTO.setAuthorizationHeader(APIConstants.AUTHORIZATION_HEADER_DEFAULT);
+        }
+
+        APIProduct productToBeAdded = APIMappingUtil.fromDTOtoAPIProduct(apiProductDTO, provider);
+
+        Map<API, List<APIProductResource>> apiToProductResourceMapping = apiProvider
+                .addAPIProductWithoutPublishingToGateway(productToBeAdded);
+        apiProvider.addAPIProductSwagger(apiToProductResourceMapping, productToBeAdded);
+
+        APIProductIdentifier createdAPIProductIdentifier = productToBeAdded.getId();
+        APIProduct createdProduct = apiProvider.getAPIProduct(createdAPIProductIdentifier);
+
+        apiProvider.saveToGateway(createdProduct);
+        return createdProduct;
     }
 
     /**

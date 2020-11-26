@@ -3784,7 +3784,7 @@ public class ApisApiServiceImpl implements ApisApiService {
         preserveProvider = preserveProvider == null || preserveProvider;
         try {
             String extractedFolderPath = ImportUtils.getArchivePathOfExtractedDirectory(fileInputStream);
-            ImportUtils.importApi(extractedFolderPath, preserveProvider, overwrite);
+            ImportUtils.importApi(extractedFolderPath, null, preserveProvider, overwrite);
             return Response.status(Response.Status.OK).entity("API imported successfully.").build();
         } catch (APIImportExportException e) {
             if (RestApiUtil.isDueToResourceAlreadyExists(e)) {

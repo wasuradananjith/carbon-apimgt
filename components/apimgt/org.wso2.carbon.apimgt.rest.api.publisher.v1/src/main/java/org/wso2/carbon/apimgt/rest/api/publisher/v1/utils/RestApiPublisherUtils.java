@@ -945,4 +945,66 @@ public class RestApiPublisherUtils {
         }
         return api;
     }
+
+    /**
+     * Update an API Product.
+     *
+     * @param originalAPIProduct    Existing API Product
+     * @param apiProductDtoToUpdate New API Product DTO to update
+     * @param apiProvider           API Provider
+     * @param username              Username
+     * @throws APIManagementException If an error occurs while retrieving and updating an existing API Product
+     * @throws FaultGatewaysException If an error occurs while updating an existing API Product
+     */
+    public static APIProduct updateApiProduct(APIProduct originalAPIProduct, APIProductDTO apiProductDtoToUpdate,
+            APIProvider apiProvider, String username) throws APIManagementException, FaultGatewaysException {
+        List<String> apiSecurity = apiProductDtoToUpdate.getSecurityScheme();
+
+        //validation for tiers
+        List<String> tiersFromDTO = apiProductDtoToUpdate.getPolicies();
+        if (apiSecurity.contains(APIConstants.DEFAULT_API_SECURITY_OAUTH2) || apiSecurity
+                .contains(APIConstants.API_SECURITY_API_KEY)) {
+            if (tiersFromDTO == null || tiersFromDTO.isEmpty()) {
+                RestApiUtil.handleBadRequest("No tier defined for the API Product", log);
+            }
+        }
+
+        //check whether the added API Products's tiers are all valid
+        Set<Tier> definedTiers = apiProvider.getTiers();
+        List<String> invalidTiers = RestApiUtil.getInvalidTierNames(definedTiers, tiersFromDTO);
+        if (!invalidTiers.isEmpty()) {
+            RestApiUtil
+                    .handleBadRequest("Specified tier(s) " + Arrays.toString(invalidTiers.toArray()) + " are invalid",
+                            log);
+        }
+        if (apiProductDtoToUpdate.getAdditionalProperties() != null) {
+            String errorMessage = RestApiPublisherUtils
+                    .validateAdditionalProperties(apiProductDtoToUpdate.getAdditionalProperties());
+            if (!errorMessage.isEmpty()) {
+                RestApiUtil.handleBadRequest(errorMessage, log);
+            }
+        }
+
+        //only publish api product if tiers are defined
+        if (APIProductDTO.StateEnum.PUBLISHED.equals(apiProductDtoToUpdate.getState())) {
+            //if the already created API product does not have tiers defined and the update request also doesn't
+            //have tiers defined, then the product should not moved to PUBLISHED state.
+            if (originalAPIProduct.getAvailableTiers() == null && apiProductDtoToUpdate.getPolicies() == null) {
+                RestApiUtil.handleBadRequest("Policy needs to be defined before publishing the API Product", log);
+            }
+        }
+
+        APIProduct product = APIMappingUtil.fromDTOtoAPIProduct(apiProductDtoToUpdate, username);
+        //We do not allow to modify provider,name,version  and uuid. Set the origial value
+        APIProductIdentifier productIdentifier = originalAPIProduct.getId();
+        product.setID(productIdentifier);
+        product.setUuid(originalAPIProduct.getUuid());
+
+        Map<API, List<APIProductResource>> apiToProductResourceMapping = apiProvider.updateAPIProduct(product);
+        apiProvider.updateAPIProductSwagger(apiToProductResourceMapping, product);
+
+        //preserve monetization status in the update flow
+        apiProvider.configureMonetizationInAPIProductArtifact(product);
+        return apiProvider.getAPIProduct(productIdentifier);
+    }
 }

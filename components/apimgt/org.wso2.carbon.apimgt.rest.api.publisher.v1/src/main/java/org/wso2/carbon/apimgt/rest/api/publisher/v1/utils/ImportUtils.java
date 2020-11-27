@@ -32,6 +32,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.xpath.operations.Bool;
 import org.json.simple.parser.ParseException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -144,7 +145,8 @@ public class ImportUtils {
             String apiType = importedApiDTO.getType().toString();
 
             // Validate swagger content except for WebSocket APIs
-            if (!APIConstants.APITransportType.WS.toString().equalsIgnoreCase(apiType)) {
+            if (!APIConstants.APITransportType.WS.toString().equalsIgnoreCase(apiType)
+                    && !APIConstants.APITransportType.GRAPHQL.toString().equalsIgnoreCase(apiType)) {
                 swaggerDefinitionValidationResponse = retrieveValidatedSwaggerDefinitionFromArchive(
                         extractedFolderPath);
             }
@@ -164,15 +166,21 @@ public class ImportUtils {
             // The status of the importing API should be stored separately to do the lifecycle change at the end
             targetStatus = importedApiDTO.getLifeCycleStatus();
 
+            API targetApi = retrieveApiToOverwrite(importedApiDTO.getName(), importedApiDTO.getVersion(),
+                    currentTenantDomain, apiProvider, Boolean.TRUE);
+
             // If the overwrite is set to true (which means an update), retrieve the existing API
-            if (Boolean.TRUE.equals(overwrite)) {
-                API targetApi = retrieveApiToOverwrite(importedApiDTO.getName(), importedApiDTO.getVersion(),
-                        currentTenantDomain, apiProvider);
+            if (Boolean.TRUE.equals(overwrite) && targetApi != null) {
+                log.info("Existing API found, attempting to update it...");
                 currentStatus = targetApi.getStatus();
                 // Set the status of imported API to current status of target API when updating
                 importedApiDTO.setLifeCycleStatus(currentStatus);
                 importedApi = RestApiPublisherUtils.updateApi(targetApi, importedApiDTO, apiProvider);
             } else {
+                if (targetApi == null && Boolean.TRUE.equals(overwrite)) {
+                    log.info("Cannot find : " + importedApiDTO.getName() + "-" + importedApiDTO.getVersion()
+                            + ". Creating it.");
+                }
                 // Initialize to CREATED when import
                 currentStatus = APIStatus.CREATED.toString();
                 importedApiDTO.setLifeCycleStatus(currentStatus);
@@ -184,7 +192,8 @@ public class ImportUtils {
             lifecycleAction = getLifeCycleAction(currentTenantDomain, currentStatus, targetStatus, apiProvider);
 
             // Add/update swagger content except for WebSocket APIs
-            if (!APIConstants.APITransportType.WS.toString().equalsIgnoreCase(apiType)) {
+            if (!APIConstants.APITransportType.WS.toString().equalsIgnoreCase(apiType)
+                    && !APIConstants.APITransportType.GRAPHQL.toString().equalsIgnoreCase(apiType)) {
                 // Add the validated swagger separately since the UI does the same procedure
                 apisApiService.updateSwagger(importedApi.getUUID(), swaggerDefinitionValidationResponse);
             }
@@ -211,7 +220,8 @@ public class ImportUtils {
                 if (log.isDebugEnabled()) {
                     log.debug("Mutual SSL enabled. Importing client certificates.");
                 }
-                addClientCertificates(extractedFolderPath, apiProvider);
+                addClientCertificates(extractedFolderPath, apiProvider, preserveProvider,
+                        importedApi.getId().getProviderName());
             }
 
             // Change API lifecycle if state transition is required
@@ -258,15 +268,19 @@ public class ImportUtils {
      * @param apiVersion          API Version
      * @param currentTenantDomain Current tenant domain
      * @param apiProvider         API Provider
+     * @param ignoreAndImport     This should be true if the exception should be ignored
      * @throws APIManagementException If an error occurs when retrieving the API to overwrite
      */
     private static API retrieveApiToOverwrite(String apiName, String apiVersion, String currentTenantDomain,
-            APIProvider apiProvider) throws APIManagementException {
+            APIProvider apiProvider, Boolean ignoreAndImport) throws APIManagementException {
         String provider = APIUtil.getAPIProviderFromAPINameVersionTenant(apiName, apiVersion, currentTenantDomain);
         APIIdentifier apiIdentifier = new APIIdentifier(APIUtil.replaceEmailDomain(provider), apiName, apiVersion);
 
         // Checking whether the API exists
         if (!apiProvider.isAPIAvailable(apiIdentifier)) {
+            if (ignoreAndImport) {
+                return null;
+            }
             String errorMessage = "Error occurred while retrieving the API. API: " + apiName + StringUtils.SPACE
                     + APIConstants.API_DATA_VERSION + ": " + apiVersion + " not found";
             throw new APIMgtResourceNotFoundException(errorMessage);
@@ -362,7 +376,7 @@ public class ImportUtils {
             String prevProviderWithDomain = APIUtil.replaceEmailDomain(prevProvider);
             String currentUserWithDomain = APIUtil.replaceEmailDomain(currentUser);
             configObject.remove(ImportExportConstants.PROVIDER_ELEMENT);
-            configObject.addProperty(ImportExportConstants.PROVIDER_ELEMENT, currentUserWithDomain);
+            configObject.addProperty(ImportExportConstants.PROVIDER_ELEMENT, currentUser);
 
             if (configObject.get(ImportExportConstants.WSDL_URL) != null) {
                 // If original provider is not preserved, replace provider name in the wsdl URL
@@ -1056,8 +1070,8 @@ public class ImportUtils {
      * @param apiProvider   API Provider
      * @throws APIImportExportException
      */
-    private static void addClientCertificates(String pathToArchive, APIProvider apiProvider)
-            throws APIImportExportException {
+    private static void addClientCertificates(String pathToArchive, APIProvider apiProvider, Boolean preserveProvider,
+            String provider) throws APIImportExportException {
         String jsonContent = null;
         String pathToClientCertificatesDirectory =
                 pathToArchive + File.separator + ImportExportConstants.CLIENT_CERTIFICATES_DIRECTORY;
@@ -1090,10 +1104,12 @@ public class ImportUtils {
                     .fromJson(modifiedCertificatesData, new TypeToken<ArrayList<ClientCertificateDTO>>() {
                     }.getType());
             for (ClientCertificateDTO certDTO : certificateMetadataDTOS) {
-                apiProvider.addClientCertificate(
-                        APIUtil.replaceEmailDomainBack(certDTO.getApiIdentifier().getProviderName()),
-                        certDTO.getApiIdentifier(), certDTO.getCertificate(), certDTO.getAlias(),
-                        certDTO.getTierName());
+                APIIdentifier apiIdentifier = !preserveProvider ?
+                        new APIIdentifier(provider, certDTO.getApiIdentifier().getApiName(),
+                                certDTO.getApiIdentifier().getVersion()) :
+                        certDTO.getApiIdentifier();
+                apiProvider.addClientCertificate(APIUtil.replaceEmailDomainBack(provider), apiIdentifier,
+                        certDTO.getCertificate(), certDTO.getAlias(), certDTO.getTierName());
             }
         } catch (IOException e) {
             String errorMessage = "Error in reading certificates file";
@@ -1290,13 +1306,18 @@ public class ImportUtils {
             }
 
             ApiProductsApiServiceImpl apiProductsApiService = new ApiProductsApiServiceImpl();
+            APIProduct targetApiProduct = retrieveApiProductToOverwrite(importedApiProductDTO.getName(),
+                    currentTenantDomain, apiProvider, Boolean.TRUE);
+
             // If the overwrite is set to true (which means an update), retrieve the existing API
-            if (Boolean.TRUE.equals(overwriteAPIProduct)) {
-                APIProduct targetApiProduct = retrieveApiProductToOverwrite(importedApiProductDTO.getName(),
-                        currentTenantDomain, apiProvider);
+            if (Boolean.TRUE.equals(overwriteAPIProduct) && targetApiProduct != null) {
+                log.info("Existing API Product found, attempting to update it...");
                 importedApiProduct = RestApiPublisherUtils
                         .updateApiProduct(targetApiProduct, importedApiProductDTO, apiProvider, userName);
             } else {
+                if (targetApiProduct == null && Boolean.TRUE.equals(overwriteAPIProduct)) {
+                    log.info("Cannot find : " + importedApiProductDTO.getName() + ". Creating it.");
+                }
                 importedApiProduct = apiProductsApiService
                         .addAPIProductWithGeneratedSwaggerDefinition(importedApiProductDTO,
                                 importedApiProductDTO.getProvider(), apiProvider);
@@ -1314,7 +1335,8 @@ public class ImportUtils {
                 if (log.isDebugEnabled()) {
                     log.debug("Mutual SSL enabled. Importing client certificates.");
                 }
-                addClientCertificates(extractedFolderPath, apiProvider);
+                addClientCertificates(extractedFolderPath, apiProvider, preserveProvider,
+                        importedApiProduct.getId().getProviderName());
             }
         } catch (IOException e) {
             // Error is logged and APIImportExportException is thrown because adding API Product and swagger are mandatory steps
@@ -1366,10 +1388,11 @@ public class ImportUtils {
      * @param apiProductName      API Product Name
      * @param currentTenantDomain Current tenant domain
      * @param apiProvider         API Provider
+     * @param ignoreAndImport     This should be true if the exception should be ignored
      * @throws APIManagementException If an error occurs when retrieving the API to overwrite
      */
     private static APIProduct retrieveApiProductToOverwrite(String apiProductName, String currentTenantDomain,
-            APIProvider apiProvider) throws APIManagementException {
+            APIProvider apiProvider, Boolean ignoreAndImport) throws APIManagementException {
         String provider = APIUtil.getAPIProviderFromAPINameVersionTenant(apiProductName,
                 ImportExportConstants.DEFAULT_API_PRODUCT_VERSION, currentTenantDomain);
         APIProductIdentifier apiProductIdentifier = new APIProductIdentifier(APIUtil.replaceEmailDomain(provider),
@@ -1377,6 +1400,9 @@ public class ImportUtils {
 
         // Checking whether the API exists
         if (!apiProvider.isAPIProductAvailable(apiProductIdentifier)) {
+            if (ignoreAndImport) {
+                return null;
+            }
             String errorMessage = "Error occurred while retrieving the API Product. API Product: " + apiProductName
                     + StringUtils.SPACE + APIConstants.API_DATA_VERSION + ": "
                     + ImportExportConstants.DEFAULT_API_PRODUCT_VERSION + " not found";
@@ -1397,7 +1423,8 @@ public class ImportUtils {
             String currentTenantDomain) throws APIManagementException {
         List<ProductAPIDTO> apis = importedApiProductDtO.getApis();
         for (ProductAPIDTO api : apis) {
-            API targetApi = retrieveApiToOverwrite(api.getName(), api.getVersion(), currentTenantDomain, apiProvider);
+            API targetApi = retrieveApiToOverwrite(api.getName(), api.getVersion(), currentTenantDomain, apiProvider,
+                    Boolean.FALSE);
             if (targetApi != null) {
                 api.setApiId(targetApi.getUUID());
             }
@@ -1452,7 +1479,7 @@ public class ImportUtils {
                             // Get the provider of the API if the API is in current user's tenant domain.
                             API api = retrieveApiToOverwrite(apiName, apiVersion,
                                     MultitenantUtils.getTenantDomain(APIUtil.replaceEmailDomainBack(currentUser)),
-                                    apiProvider);
+                                    apiProvider, Boolean.FALSE);
                             invalidApiOperations = filterInvalidProductResources(invalidApiOperations,
                                     api.getUriTemplates());
                         }
@@ -1569,7 +1596,8 @@ public class ImportUtils {
                     // Retrieve the API from the environment (This happens when you have not specified
                     // the overwrite flag, so that we should retrieve the API from inside)
                     importedApi = retrieveApiToOverwrite(apiDtoToImport.getName(), apiDtoToImport.getVersion(),
-                            MultitenantUtils.getTenantDomain(APIUtil.replaceEmailDomainBack(currentUser)), apiProvider);
+                            MultitenantUtils.getTenantDomain(APIUtil.replaceEmailDomainBack(currentUser)), apiProvider,
+                            Boolean.FALSE);
                 }
                 updateApiUuidInApiProduct(apiProductDto, importedApi);
             }

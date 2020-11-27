@@ -707,7 +707,13 @@ public class ApiProductsApiServiceImpl implements ApiProductsApiService {
             RestApiUtil.handleInternalServerError("Error occurred while importing the API Product", log);
             return null;
         } else {
-            importAPIs = importAPIs && Arrays.asList(tokenScopes).contains(RestApiConstants.API_IMPORT_EXPORT_SCOPE);
+            Boolean isRequiredScopesAvailable = Arrays.asList(tokenScopes)
+                    .contains(RestApiConstants.API_IMPORT_EXPORT_SCOPE);
+            if (!isRequiredScopesAvailable) {
+                log.info("Since the user does not have required scope: " + RestApiConstants.API_IMPORT_EXPORT_SCOPE
+                        + ", importAPIs will be set to false");
+            }
+            importAPIs = importAPIs && isRequiredScopesAvailable;
         }
 
         // Check whether to update the API Product. If not specified, default value is false.

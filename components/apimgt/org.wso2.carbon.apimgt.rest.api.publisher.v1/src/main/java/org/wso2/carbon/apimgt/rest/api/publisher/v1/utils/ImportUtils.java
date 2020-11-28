@@ -18,7 +18,6 @@
 
 package org.wso2.carbon.apimgt.rest.api.publisher.v1.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -32,7 +31,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.xpath.operations.Bool;
 import org.json.simple.parser.ParseException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -45,14 +43,12 @@ import org.wso2.carbon.apimgt.api.APIMgtAuthorizationFailedException;
 import org.wso2.carbon.apimgt.api.APIMgtResourceNotFoundException;
 import org.wso2.carbon.apimgt.api.APIProvider;
 import org.wso2.carbon.apimgt.api.FaultGatewaysException;
-import org.wso2.carbon.apimgt.api.WorkflowStatus;
 import org.wso2.carbon.apimgt.api.dto.ClientCertificateDTO;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.APIIdentifier;
 import org.wso2.carbon.apimgt.api.model.APIProduct;
 import org.wso2.carbon.apimgt.api.model.APIProductIdentifier;
 import org.wso2.carbon.apimgt.api.model.APIProductResource;
-import org.wso2.carbon.apimgt.api.model.APIStateChangeResponse;
 import org.wso2.carbon.apimgt.api.model.APIStatus;
 import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
 import org.wso2.carbon.apimgt.api.model.Documentation;
@@ -81,7 +77,6 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.GraphQLValidationRespons
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ProductAPIDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.impl.ApiProductsApiServiceImpl;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.impl.ApisApiServiceImpl;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.utils.mappings.APIMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
 import org.wso2.carbon.core.util.CryptoException;
 import org.wso2.carbon.registry.core.Registry;
@@ -137,12 +132,13 @@ public class ImportUtils {
         int tenantId = 0;
 
         try {
-            APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
             if (importedApiDTO == null) {
                 JsonElement jsonObject = retrieveValidatedDTOObject(extractedFolderPath, preserveProvider, userName);
                 importedApiDTO = new Gson().fromJson(jsonObject, APIDTO.class);
             }
             String apiType = importedApiDTO.getType().toString();
+
+            APIProvider apiProvider = RestApiUtil.getProvider(importedApiDTO.getProvider());
 
             // Validate swagger content except for WebSocket APIs
             if (!APIConstants.APITransportType.WS.toString().equalsIgnoreCase(apiType)
@@ -175,7 +171,8 @@ public class ImportUtils {
                 currentStatus = targetApi.getStatus();
                 // Set the status of imported API to current status of target API when updating
                 importedApiDTO.setLifeCycleStatus(currentStatus);
-                importedApi = RestApiPublisherUtils.updateApi(targetApi, importedApiDTO, apiProvider);
+                importedApi = RestApiPublisherUtils
+                        .updateApi(targetApi, importedApiDTO, RestApiUtil.getLoggedInUserProvider());
             } else {
                 if (targetApi == null && Boolean.TRUE.equals(overwrite)) {
                     log.info("Cannot find : " + importedApiDTO.getName() + "-" + importedApiDTO.getVersion()
@@ -184,8 +181,9 @@ public class ImportUtils {
                 // Initialize to CREATED when import
                 currentStatus = APIStatus.CREATED.toString();
                 importedApiDTO.setLifeCycleStatus(currentStatus);
-                importedApi = apisApiService.addAPIWithGeneratedSwaggerDefinition(importedApiDTO, apiProvider,
-                        ImportExportConstants.OAS_VERSION_3);
+                importedApi = apisApiService
+                        .addAPIWithGeneratedSwaggerDefinition(importedApiDTO, ImportExportConstants.OAS_VERSION_3,
+                                importedApiDTO.getProvider());
             }
 
             // Retrieving the life cycle action to do the lifecycle state change explicitly later
@@ -226,6 +224,7 @@ public class ImportUtils {
 
             // Change API lifecycle if state transition is required
             if (StringUtils.isNotEmpty(lifecycleAction)) {
+                apiProvider = RestApiUtil.getLoggedInUserProvider();
                 log.info("Changing lifecycle from " + currentStatus + " to " + targetStatus);
                 if (StringUtils.equals(lifecycleAction, APIConstants.LC_PUBLISH_LC_STATE)) {
                     apiProvider.changeAPILCCheckListItems(importedApi.getId(),
@@ -1286,9 +1285,10 @@ public class ImportUtils {
         APIProduct importedApiProduct = null;
 
         try {
-            APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
             JsonElement jsonObject = retrieveValidatedDTOObject(extractedFolderPath, preserveProvider, userName);
             APIProductDTO importedApiProductDTO = new Gson().fromJson(jsonObject, APIProductDTO.class);
+
+            APIProvider apiProvider = RestApiUtil.getProvider(importedApiProductDTO.getProvider());
 
             // Check whether the API resources are valid
             checkAPIProductResourcesValid(extractedFolderPath, userName, apiProvider, importedApiProductDTO,
@@ -1312,15 +1312,15 @@ public class ImportUtils {
             // If the overwrite is set to true (which means an update), retrieve the existing API
             if (Boolean.TRUE.equals(overwriteAPIProduct) && targetApiProduct != null) {
                 log.info("Existing API Product found, attempting to update it...");
-                importedApiProduct = RestApiPublisherUtils
-                        .updateApiProduct(targetApiProduct, importedApiProductDTO, apiProvider, userName);
+                importedApiProduct = RestApiPublisherUtils.updateApiProduct(targetApiProduct, importedApiProductDTO,
+                        RestApiUtil.getLoggedInUserProvider(), userName);
             } else {
                 if (targetApiProduct == null && Boolean.TRUE.equals(overwriteAPIProduct)) {
                     log.info("Cannot find : " + importedApiProductDTO.getName() + ". Creating it.");
                 }
                 importedApiProduct = apiProductsApiService
                         .addAPIProductWithGeneratedSwaggerDefinition(importedApiProductDTO,
-                                importedApiProductDTO.getProvider(), apiProvider);
+                                importedApiProductDTO.getProvider(), importedApiProductDTO.getProvider());
             }
 
             // Add/update swagger of API Product

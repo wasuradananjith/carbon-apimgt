@@ -842,7 +842,7 @@ public class ExportUtils {
                             schemaContent);
                 }
                 String formattedSwaggerJson = RestApiPublisherUtils.retrieveSwaggerDefinition(
-                        APIMappingUtil.fromDTOtoAPI(apiDtoToReturn, userName), apiProvider);
+                        APIMappingUtil.fromDTOtoAPI(apiDtoToReturn, apiDtoToReturn.getProvider()), apiProvider);
                 writeToYamlOrJson(archivePath + ImportExportConstants.SWAGGER_DEFINITION_LOCATION,
                         exportFormat, formattedSwaggerJson);
 
@@ -960,7 +960,7 @@ public class ExportUtils {
 
         try {
             String formattedSwaggerJson = apiProvider.getAPIDefinitionOfAPIProduct(
-                    APIMappingUtil.fromDTOtoAPIProduct(apiProductDtoToReturn, userName));
+                    APIMappingUtil.fromDTOtoAPIProduct(apiProductDtoToReturn, apiProductDtoToReturn.getProvider()));
             writeToYamlOrJson(archivePath +
                     ImportExportConstants.SWAGGER_DEFINITION_LOCATION, exportFormat, formattedSwaggerJson);
 

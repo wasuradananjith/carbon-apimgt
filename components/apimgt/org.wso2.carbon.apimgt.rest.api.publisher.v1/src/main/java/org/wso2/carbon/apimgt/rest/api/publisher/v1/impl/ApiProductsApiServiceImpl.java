@@ -756,8 +756,8 @@ public class ApiProductsApiServiceImpl implements ApiProductsApiService {
     public Response apiProductsPost(APIProductDTO body, MessageContext messageContext) {
         String provider = body.getProvider();
         try {
-            APIProvider apiProvider = RestApiUtil.getLoggedInUserProvider();
-            APIProduct createdProduct = addAPIProductWithGeneratedSwaggerDefinition(body, provider, apiProvider);
+            APIProduct createdProduct = addAPIProductWithGeneratedSwaggerDefinition(body, provider,
+                    RestApiUtil.getLoggedInUsername());
             APIProductDTO createdApiProductDTO = APIMappingUtil.fromAPIProducttoDTO(createdProduct);
             URI createdApiProductUri = new URI(
                     RestApiConstants.RESOURCE_PATH_API_PRODUCTS + "/" + createdApiProductDTO.getId());
@@ -780,14 +780,16 @@ public class ApiProductsApiServiceImpl implements ApiProductsApiService {
      *
      * @param apiProductDTO API Product DTO
      * @param provider      Provider name
-     * @param apiProvider   API Product Provider
+     * @param username      Username
      * @return Created API Product object
      * @throws APIManagementException Error while creating the API Product
      * @throws FaultGatewaysException Error while adding the API Product to gateway
      */
     public APIProduct addAPIProductWithGeneratedSwaggerDefinition(APIProductDTO apiProductDTO, String provider,
-            APIProvider apiProvider) throws APIManagementException, FaultGatewaysException {
-        String username = RestApiUtil.getLoggedInUsername();
+            String username) throws APIManagementException, FaultGatewaysException {
+        username = StringUtils.isEmpty(username) ? RestApiUtil.getLoggedInUsername() : username;
+        APIProvider apiProvider = RestApiUtil.getProvider(username);
+
         // if not add product
         if (!StringUtils.isBlank(provider) && !provider.equals(username)) {
             if (!APIUtil.hasPermission(username, Permissions.APIM_ADMIN)) {

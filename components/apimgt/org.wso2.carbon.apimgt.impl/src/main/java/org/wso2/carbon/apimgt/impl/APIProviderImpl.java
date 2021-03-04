@@ -1630,7 +1630,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
             String previousDefaultVersion = getDefaultVersion(api.getId());
             String publishedDefaultVersion = getPublishedDefaultVersion(api.getId());
 
-            updateOtherAPIversionsForNewDefautlAPIChange(api, previousDefaultVersion);
+            updateOtherAPIVersionsForNewDefaultAPIChange(api, previousDefaultVersion);
 
             updateEndpointSecurity(oldApi, api);
 
@@ -1705,7 +1705,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         return api;
     }
 
-    private void updateOtherAPIversionsForNewDefautlAPIChange(API api, String previousDefaultVersion)
+    public void updateOtherAPIVersionsForNewDefaultAPIChange(API api, String previousDefaultVersion)
             throws APIManagementException {
 
         if (previousDefaultVersion != null) {

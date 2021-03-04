@@ -228,6 +228,18 @@ public class ImportUtils {
                 importedApi = PublisherCommonUtils
                         .addAPIWithGeneratedSwaggerDefinition(importedApiDTO, ImportExportConstants.OAS_VERSION_3,
                                 importedApiDTO.getProvider());
+
+                // Check whether the imported API is the default version
+                if (importedApiDTO.isIsDefaultVersion()) {
+                    // Retrieve the previous default API if there is any
+                    String previousDefaultVersion = apiProvider.getDefaultVersion(
+                            new APIIdentifier(importedApiDTO.getProvider(), importedApiDTO.getName(),
+                                    importedApiDTO.getVersion()));
+                    if (StringUtils.isNotBlank(previousDefaultVersion)) {
+                        // Remove the default API version from the previous version if it is not null, empty or blank
+                        apiProvider.updateOtherAPIVersionsForNewDefaultAPIChange(importedApi, previousDefaultVersion);
+                    }
+                }
             }
 
             // Retrieving the life cycle action to do the lifecycle state change explicitly later

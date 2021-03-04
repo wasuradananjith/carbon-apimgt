@@ -344,6 +344,16 @@ public interface APIProvider extends APIManager {
     String getDefaultVersion(APIIdentifier apiid) throws APIManagementException;
 
     /**
+     * Disable the default API version in other APIs and update the current API as the default version
+     *
+     * @param api                    API
+     * @param previousDefaultVersion API ID of the previous default version
+     * @throws APIManagementException
+     */
+    void updateOtherAPIVersionsForNewDefaultAPIChange(API api, String previousDefaultVersion)
+            throws APIManagementException;
+
+    /**
      * Adds a new API to the Store
      *
      * @param api API

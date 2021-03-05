@@ -993,6 +993,16 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
     }
 
     /**
+     * Add/update the default API version of an API.
+     *
+     * @param api API to add
+     * @throws APIManagementException if an error occurs while adding/updating the default API version of the API
+     */
+    public void addUpdateAPIAsDefaultVersion(API api) throws APIManagementException {
+        apiMgtDAO.addUpdateAPIAsDefaultVersion(api);
+    }
+
+    /**
      * Add API metadata, local scopes and URI templates to the database and KeyManager.
      *
      * @param api      API to add
@@ -1467,17 +1477,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
                         previousDefaultVersion);
                 if (api.isDefaultVersion() ^ api.getId().getVersion().equals(previousDefaultVersion)) { // A change has
                     // happen
-                    // Remove the previous default API entry from the Registry
-                    updateDefaultAPIInRegistry(defaultAPIId, false);
-                    if (!api.isDefaultVersion()) {// default api tick is removed
-                        // todo: if it is ok, these two variables can be put to the top of the function to remove
-                        // duplication
-                        String gatewayType = getAPIManagerConfiguration()
-                                .getFirstProperty(APIConstants.API_GATEWAY_TYPE);
-                        if (APIConstants.API_GATEWAY_TYPE_SYNAPSE.equalsIgnoreCase(gatewayType)) {
-                            removeDefaultAPIFromGateway(api);
-                        }
-                    }
+                    removeDefaultAPIFromRegistryAndGateway(defaultAPIId, api);
                 }
             }
 
@@ -3125,6 +3125,20 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
 
     }
 
+    public void removeDefaultAPIFromRegistryAndGateway(APIIdentifier defaultAPIId, API api)
+            throws APIManagementException {
+        // Remove the previous default API entry from the Registry
+        updateDefaultAPIInRegistry(defaultAPIId, false);
+        if (!api.isDefaultVersion()) {// default api tick is removed
+            // todo: if it is ok, these two variables can be put to the top of the function to remove
+            // duplication
+            String gatewayType = getAPIManagerConfiguration()
+                    .getFirstProperty(APIConstants.API_GATEWAY_TYPE);
+            if (APIConstants.API_GATEWAY_TYPE_SYNAPSE.equalsIgnoreCase(gatewayType)) {
+                removeDefaultAPIFromGateway(api);
+            }
+        }
+    }
 
     public void updateDefaultAPIInRegistry(APIIdentifier apiIdentifier, boolean value) throws APIManagementException {
         try {

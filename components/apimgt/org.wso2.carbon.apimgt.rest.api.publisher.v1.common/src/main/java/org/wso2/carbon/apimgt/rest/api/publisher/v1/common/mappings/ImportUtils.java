@@ -202,6 +202,12 @@ public class ImportUtils {
             API targetApi = retrieveApiToOverwrite(importedApiDTO.getName(), importedApiDTO.getVersion(),
                     currentTenantDomain, apiProvider, Boolean.TRUE);
 
+            // Retrieve the default API version if there is any to be used after the API lifecycle status change
+            // to update the new default API version
+            String previousDefaultAPIVersion = apiProvider.getDefaultVersion(
+                    new APIIdentifier(importedApiDTO.getProvider(), importedApiDTO.getName(),
+                            importedApiDTO.getVersion()));
+
             // If the overwrite is set to true (which means an update), retrieve the existing API
             if (Boolean.TRUE.equals(overwrite) && targetApi != null) {
                 log.info("Existing API found, attempting to update it...");
@@ -228,18 +234,6 @@ public class ImportUtils {
                 importedApi = PublisherCommonUtils
                         .addAPIWithGeneratedSwaggerDefinition(importedApiDTO, ImportExportConstants.OAS_VERSION_3,
                                 importedApiDTO.getProvider());
-
-                // Check whether the imported API is the default version
-                if (importedApiDTO.isIsDefaultVersion()) {
-                    // Retrieve the previous default API if there is any
-                    String previousDefaultVersion = apiProvider.getDefaultVersion(
-                            new APIIdentifier(importedApiDTO.getProvider(), importedApiDTO.getName(),
-                                    importedApiDTO.getVersion()));
-                    if (StringUtils.isNotBlank(previousDefaultVersion)) {
-                        // Remove the default API version from the previous version if it is not null, empty or blank
-                        apiProvider.updateOtherAPIVersionsForNewDefaultAPIChange(importedApi, previousDefaultVersion);
-                    }
-                }
             }
 
             // Retrieving the life cycle action to do the lifecycle state change explicitly later
@@ -291,6 +285,15 @@ public class ImportUtils {
                 apiProvider.changeLifeCycleStatus(importedApi.getId(), lifecycleAction);
             }
             importedApi.setStatus(targetStatus);
+
+            // Since the lifecycle status change has been done properly,
+            // check whether the imported API is the default version before setting the default API version
+            if (importedApiDTO.isIsDefaultVersion()) {
+                importedApi.setStatus(targetStatus);
+                updateDefaultAPIVersion(apiProvider, importedApiDTO, importedApi, currentTenantDomain,
+                        previousDefaultAPIVersion);
+            }
+
             String tenantDomain = RestApiCommonUtil.getLoggedInUserTenantDomain();
             if (deploymentInfoArray == null) {
                 //If the params have not overwritten the deployment environments, yaml file will be read
@@ -373,6 +376,35 @@ public class ImportUtils {
             }
             throw new APIManagementException(errorMessage + StringUtils.SPACE + e.getMessage(), e);
         }
+    }
+
+    /**
+     * This method is used to set the correct default API version during an import. The logic was written again since
+     * the UI flow does not tally with the APICTL flow
+     *
+     * @param apiProvider         Provider of the API
+     * @param importedApiDTO      API DTO of the importing API
+     * @param importedApi         Imported API
+     * @param currentTenantDomain Current tenant domain
+     * @param previousDefaultAPIVersion Previous Default Version if any
+     * @throws APIManagementException If an error occurs when retrieving and updating details
+     * @throws FaultGatewaysException If an error occurs when updating the existing API
+     */
+    private static void updateDefaultAPIVersion(APIProvider apiProvider, APIDTO importedApiDTO, API importedApi,
+            String currentTenantDomain, String previousDefaultAPIVersion) throws APIManagementException, FaultGatewaysException {
+        String apiName = importedApiDTO.getName();
+        String version = importedApiDTO.getVersion();
+        // Find whether there is a previously added API with a different default API version and update it with false
+        if (StringUtils.isNotBlank(previousDefaultAPIVersion) && !StringUtils
+                .equals(previousDefaultAPIVersion, version)) {
+            String previousDefaultAPIProvider = APIUtil
+                    .getAPIProviderFromAPINameVersionTenant(apiName, version, currentTenantDomain);
+            APIIdentifier previousDefaultAPIIdentifier = new APIIdentifier(previousDefaultAPIProvider, apiName,
+                    previousDefaultAPIVersion);
+            API previousDefaultAPI = apiProvider.getAPI(previousDefaultAPIIdentifier);
+            apiProvider.removeDefaultAPIFromRegistryAndGateway(previousDefaultAPIIdentifier, previousDefaultAPI);
+        }
+        apiProvider.addUpdateAPIAsDefaultVersion(importedApi);
     }
 
     /**
@@ -607,6 +639,11 @@ public class ImportUtils {
             apiVersion = configObject.get(ImportExportConstants.VERSION_ELEMENT).getAsString();
         } else {
             apiVersion = ImportExportConstants.DEFAULT_API_PRODUCT_VERSION;
+        }
+
+        // Check whether the isDefaultVersion field exists. If not, add it with false value
+        if (!configObject.has(ImportExportConstants.IS_DEFAULT_VERSION)) {
+            configObject.addProperty(ImportExportConstants.IS_DEFAULT_VERSION, false);
         }
 
         // Remove spaces of API Name/version if present

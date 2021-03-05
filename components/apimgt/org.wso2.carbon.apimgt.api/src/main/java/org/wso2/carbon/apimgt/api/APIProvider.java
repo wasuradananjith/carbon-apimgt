@@ -354,12 +354,29 @@ public interface APIProvider extends APIManager {
             throws APIManagementException;
 
     /**
-     * Adds a new API to the Store
+     * Add/update the default API version of an API.
      *
-     * @param api API
-     * @return added api
-     * @throws APIManagementException if failed to add API
+     * @param api API to add
+     * @throws APIManagementException if an error occurs while adding/updating the default API version of the API
      */
+    void addUpdateAPIAsDefaultVersion(API api) throws APIManagementException;
+
+    /**
+     * Remove default API from the registry and the gateway.
+     *
+     * @param defaultAPIId Identifier of the default API
+     * @param api          API to add
+     * @throws APIManagementException if an error occurs while adding/updating the default API version of the API
+     */
+    void removeDefaultAPIFromRegistryAndGateway(APIIdentifier defaultAPIId, API api) throws APIManagementException;
+
+        /**
+         * Adds a new API to the Store
+         *
+         * @param api API
+         * @return added api
+         * @throws APIManagementException if failed to add API
+         */
     API addAPI(API api) throws APIManagementException;
 
     public boolean isAPIUpdateValid(API api) throws APIManagementException;

@@ -8894,6 +8894,7 @@ public class ApiMgtDAO {
                     keyManagerConfigurationDTO.setEnabled(resultSet.getBoolean("ENABLED"));
                     keyManagerConfigurationDTO.setTenantDomain(tenantDomain);
                     keyManagerConfigurationDTO.setTokenType(resultSet.getString("TOKEN_TYPE"));
+                    keyManagerConfigurationDTO.setExternalReferenceId(resultSet.getString("EXTERNAL_REFERENCE_ID"));
                     try (InputStream configuration = resultSet.getBinaryStream("CONFIGURATION")) {
                         String configurationContent = IOUtils.toString(configuration);
                         Map map = new Gson().fromJson(configurationContent, Map.class);
@@ -8932,6 +8933,7 @@ public class ApiMgtDAO {
                     keyManagerConfigurationDTO.setTenantDomain(tenantDomain);
                     keyManagerConfigurationDTO.setDisplayName(resultSet.getString("DISPLAY_NAME"));
                     keyManagerConfigurationDTO.setTokenType(resultSet.getString("TOKEN_TYPE"));
+                    keyManagerConfigurationDTO.setExternalReferenceId(resultSet.getString("EXTERNAL_REFERENCE_ID"));
                     try (InputStream configuration = resultSet.getBinaryStream("CONFIGURATION")) {
                         String configurationContent = IOUtils.toString(configuration);
                         Map map = new Gson().fromJson(configurationContent, Map.class);
@@ -8980,6 +8982,7 @@ public class ApiMgtDAO {
                     keyManagerConfigurationDTO.setEnabled(resultSet.getBoolean("ENABLED"));
                     keyManagerConfigurationDTO.setTenantDomain(tenantDomain);
                     keyManagerConfigurationDTO.setTokenType(resultSet.getString("TOKEN_TYPE"));
+                    keyManagerConfigurationDTO.setExternalReferenceId(resultSet.getString("EXTERNAL_REFERENCE_ID"));
                     try (InputStream configuration = resultSet.getBinaryStream("CONFIGURATION")) {
                         String configurationContent = IOUtils.toString(configuration);
                         Map map = new Gson().fromJson(configurationContent, Map.class);
@@ -9020,6 +9023,7 @@ public class ApiMgtDAO {
                     keyManagerConfigurationDTO.setEnabled(resultSet.getBoolean("ENABLED"));
                     keyManagerConfigurationDTO.setTenantDomain(resultSet.getString("TENANT_DOMAIN"));
                     keyManagerConfigurationDTO.setTokenType(resultSet.getString("TOKEN_TYPE"));
+                    keyManagerConfigurationDTO.setExternalReferenceId(resultSet.getString("EXTERNAL_REFERENCE_ID"));
                     try (InputStream configuration = resultSet.getBinaryStream("CONFIGURATION")) {
                         String configurationContent = IOUtils.toString(configuration);
                         Map map = new Gson().fromJson(configurationContent, Map.class);
@@ -9049,6 +9053,7 @@ public class ApiMgtDAO {
                 preparedStatement.setBoolean(7, keyManagerConfigurationDTO.isEnabled());
                 preparedStatement.setString(8, keyManagerConfigurationDTO.getDisplayName());
                 preparedStatement.setString(9, keyManagerConfigurationDTO.getTokenType());
+                preparedStatement.setString(10, keyManagerConfigurationDTO.getExternalReferenceId());
                 preparedStatement.executeUpdate();
                 conn.commit();
             } catch (SQLException e) {
@@ -9161,6 +9166,7 @@ public class ApiMgtDAO {
                     keyManagerConfigurationDTO.setEnabled(resultSet.getBoolean("ENABLED"));
                     keyManagerConfigurationDTO.setTenantDomain(resultSet.getString("TENANT_DOMAIN"));
                     keyManagerConfigurationDTO.setTokenType(resultSet.getString("TOKEN_TYPE"));
+                    keyManagerConfigurationDTO.setExternalReferenceId(resultSet.getString("EXTERNAL_REFERENCE_ID"));
                     try (InputStream configuration = resultSet.getBinaryStream("CONFIGURATION")) {
                         String configurationContent = IOUtils.toString(configuration);
                         Map map = new Gson().fromJson(configurationContent, Map.class);

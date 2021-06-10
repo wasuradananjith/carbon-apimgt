@@ -324,9 +324,9 @@ public class APIAdminImpl implements APIAdmin {
             organization = MultitenantConstants.SUPER_TENANT_DOMAIN_NAME;
         }
 
-        List<KeyManagerConfigurationDTO> keyManagerConfigurationsByTenant =
-                apiMgtDAO.getKeyManagerConfigurationsByTenant(organization);
-        Iterator<KeyManagerConfigurationDTO> iterator = keyManagerConfigurationsByTenant.iterator();
+        List<KeyManagerConfigurationDTO> keyManagerConfigurationsByOrganization =
+                apiMgtDAO.getKeyManagerConfigurationsByOrganization(organization);
+        Iterator<KeyManagerConfigurationDTO> iterator = keyManagerConfigurationsByOrganization.iterator();
         KeyManagerConfigurationDTO defaultKeyManagerConfiguration = null;
         while (iterator.hasNext()) {
             KeyManagerConfigurationDTO keyManagerConfigurationDTO = iterator.next();
@@ -338,21 +338,21 @@ public class APIAdminImpl implements APIAdmin {
         }
         if (defaultKeyManagerConfiguration != null) {
             APIUtil.getAndSetDefaultKeyManagerConfiguration(defaultKeyManagerConfiguration);
-            keyManagerConfigurationsByTenant.add(defaultKeyManagerConfiguration);
+            keyManagerConfigurationsByOrganization.add(defaultKeyManagerConfiguration);
         }
 
         // This is the Choreo scenario. Hence, need to retrieve the IdPs of the Choreo organization as well
         // and append those to the previous list
         if (!StringUtils.equals(givenOrganization, organization)) {
-            List<KeyManagerConfigurationDTO> keyManagerConfigurationsByOrganization =
-                    apiMgtDAO.getKeyManagerConfigurationsByTenant(givenOrganization);
-            keyManagerConfigurationsByTenant.addAll(keyManagerConfigurationsByOrganization);
+            List<KeyManagerConfigurationDTO> keyManagerConfigurationsForGivenOrganization =
+                    apiMgtDAO.getKeyManagerConfigurationsByOrganization(givenOrganization);
+            keyManagerConfigurationsByOrganization.addAll(keyManagerConfigurationsForGivenOrganization);
         }
 
-        for (KeyManagerConfigurationDTO keyManagerConfigurationDTO : keyManagerConfigurationsByTenant) {
+        for (KeyManagerConfigurationDTO keyManagerConfigurationDTO : keyManagerConfigurationsByOrganization) {
             decryptKeyManagerConfigurationValues(keyManagerConfigurationDTO);
         }
-        return keyManagerConfigurationsByTenant;
+        return keyManagerConfigurationsByOrganization;
     }
 
     @Override
@@ -380,11 +380,11 @@ public class APIAdminImpl implements APIAdmin {
     }
 
     @Override
-    public KeyManagerConfigurationDTO getKeyManagerConfigurationById(String tenantDomain, String id)
+    public KeyManagerConfigurationDTO getKeyManagerConfigurationById(String organization, String id)
             throws APIManagementException {
 
         KeyManagerConfigurationDTO keyManagerConfigurationDTO =
-                apiMgtDAO.getKeyManagerConfigurationByID(tenantDomain, id);
+                apiMgtDAO.getKeyManagerConfigurationByID(organization, id);
         if (keyManagerConfigurationDTO != null &&
                 APIConstants.KeyManager.DEFAULT_KEY_MANAGER.equals(keyManagerConfigurationDTO.getName())) {
             APIUtil.getAndSetDefaultKeyManagerConfiguration(keyManagerConfigurationDTO);
@@ -394,9 +394,9 @@ public class APIAdminImpl implements APIAdmin {
     }
 
     @Override
-    public boolean isKeyManagerConfigurationExistById(String tenantDomain, String id) throws APIManagementException {
+    public boolean isKeyManagerConfigurationExistById(String organization, String id) throws APIManagementException {
 
-        return apiMgtDAO.isKeyManagerConfigurationExistById(tenantDomain, id);
+        return apiMgtDAO.isKeyManagerConfigurationExistById(organization, id);
     }
 
     @Override public KeyManagerConfigurationDTO addKeyManagerConfiguration(
@@ -535,13 +535,13 @@ public class APIAdminImpl implements APIAdmin {
     }
 
     @Override
-    public void deleteKeyManagerConfigurationById(String tenantDomain, String id) throws APIManagementException {
+    public void deleteKeyManagerConfigurationById(String organization, String id) throws APIManagementException {
 
         KeyManagerConfigurationDTO keyManagerConfigurationDTO =
-                apiMgtDAO.getKeyManagerConfigurationByID(tenantDomain, id);
+                apiMgtDAO.getKeyManagerConfigurationByID(organization, id);
         if (keyManagerConfigurationDTO != null) {
             if (!APIConstants.KeyManager.DEFAULT_KEY_MANAGER.equals(keyManagerConfigurationDTO.getName())) {
-                apiMgtDAO.deleteKeyManagerConfigurationById(id, tenantDomain);
+                apiMgtDAO.deleteKeyManagerConfigurationById(id, organization);
                 new KeyMgtNotificationSender()
                         .notify(keyManagerConfigurationDTO, APIConstants.KeyManager.KeyManagerEvent.ACTION_DELETE);
             } else {
@@ -552,11 +552,11 @@ public class APIAdminImpl implements APIAdmin {
     }
 
     @Override
-    public KeyManagerConfigurationDTO getKeyManagerConfigurationByName(String tenantDomain, String name)
+    public KeyManagerConfigurationDTO getKeyManagerConfigurationByName(String organization, String name)
             throws APIManagementException {
 
         KeyManagerConfigurationDTO keyManagerConfiguration =
-                apiMgtDAO.getKeyManagerConfigurationByName(tenantDomain, name);
+                apiMgtDAO.getKeyManagerConfigurationByName(organization, name);
         if (keyManagerConfiguration != null &&
                 APIConstants.KeyManager.DEFAULT_KEY_MANAGER.equals(keyManagerConfiguration.getName())) {
             APIUtil.getAndSetDefaultKeyManagerConfiguration(keyManagerConfiguration);

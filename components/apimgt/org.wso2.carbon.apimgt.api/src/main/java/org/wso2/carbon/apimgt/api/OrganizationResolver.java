@@ -35,6 +35,11 @@
       * @throws APIManagementException 
       */
      public int getInternalId(String organization) throws APIManagementException;
- 
+
+     /**
+      * Get the type
+      * @return String representing the organization type
+      */
+     public String getType();
  }
  

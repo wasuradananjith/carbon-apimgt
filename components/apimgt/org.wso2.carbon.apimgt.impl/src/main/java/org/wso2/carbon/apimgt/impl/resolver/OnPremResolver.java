@@ -77,4 +77,8 @@ public class OnPremResolver implements OrganizationResolver {
         return tenantId;
     }
 
+    @Override
+    public String getType() {
+        return APIConstants.ORG_TYPE_ON_PREM;
+    }
 }

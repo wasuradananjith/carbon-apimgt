@@ -318,8 +318,7 @@ public class APIAdminImpl implements APIAdmin {
         // For Choreo scenario (Choreo organization uses the same super tenant Resident Key Manager
         // Hence no need to register the default key manager per organization)
         String tenantDomain = organization;
-        if (MultitenantConstants.SUPER_TENANT_ID != APIUtil.getInternalOrganizationId(organization)
-                || StringUtils.equals(organization, MultitenantConstants.SUPER_TENANT_DOMAIN_NAME)) {
+        if (!APIUtil.isChoreoOrganization(organization)) {
             KeyMgtRegistrationService.registerDefaultKeyManager(organization);
         } else {
             tenantDomain = MultitenantConstants.SUPER_TENANT_DOMAIN_NAME;

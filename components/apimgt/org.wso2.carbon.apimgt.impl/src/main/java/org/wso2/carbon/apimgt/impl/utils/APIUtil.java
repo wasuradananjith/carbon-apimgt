@@ -5061,6 +5061,17 @@ public final class APIUtil {
     public static int getInternalOrganizationId(String organization) throws APIManagementException {
         return getOrganizationResolver().getInternalId(organization);
     }
+
+    public static String getInternalOrganizationDomain(String organization) throws APIManagementException {
+        return APIUtil.getTenantDomainFromTenantId(APIUtil.getInternalOrganizationId(organization));
+    }
+
+    public static boolean isChoreoOrganization(String organization) throws APIManagementException {
+        return StringUtils.equals(org.wso2.carbon.utils.multitenancy.MultitenantConstants.SUPER_TENANT_DOMAIN_NAME,
+                APIUtil.getInternalOrganizationDomain(organization)) && !StringUtils
+                .equals(organization, org.wso2.carbon.utils.multitenancy.MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+    }
+
     /**
      * Retrieves the role list of system
      *
